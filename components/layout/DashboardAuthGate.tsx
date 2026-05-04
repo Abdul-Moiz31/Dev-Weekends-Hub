@@ -29,7 +29,7 @@ export default function DashboardAuthGate({ children }: { children: React.ReactN
     return (
       <div className="dashboard-gate dashboard-gate--blocking" aria-busy="true" aria-label="Loading">
         <div className="dashboard-gate__card">
-          <div className="sidebar-logo-mark dashboard-gate__logo">DW</div>
+          <div className="dashboard-gate__logo">DW</div>
           <p className="dashboard-gate__title">Dev Weekends Hub</p>
           <div className="dashboard-gate__bar" />
           <p className="dashboard-gate__hint">Checking your session…</p>

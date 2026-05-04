@@ -60,6 +60,8 @@ export default function LinksPage() {
     return matchCat && matchSearch;
   });
 
+  const hasFilters = Boolean(search.trim()) || category !== 'all';
+
   const handleSave = async (data: Partial<Link>) => {
     if (editLink) {
       const { error } = await supabase.from('links').update({ ...data, updated_at: new Date().toISOString() }).eq('id', editLink.id);
@@ -105,7 +107,7 @@ export default function LinksPage() {
         )}
       </header>
 
-      <div className="flex flex-col gap-5">
+      <div className="surface-card p-4 sm:p-5 flex flex-col gap-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="topbar-search-wrap relative flex-1 min-w-0 max-w-lg">
             <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-[1]" style={{ color: 'var(--text-secondary)' }} />
@@ -152,6 +154,29 @@ export default function LinksPage() {
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+          <p style={{ color: 'var(--text-secondary)' }}>
+            Showing <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{filtered.length}</span> result{filtered.length !== 1 ? 's' : ''}
+            {category !== 'all' ? (
+              <>
+                {' '}in <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{CATEGORY_FILTERS.find(f => f.value === category)?.label}</span>
+              </>
+            ) : null}
+          </p>
+          {hasFilters && (
+            <button
+              type="button"
+              className="btn-secondary text-xs px-2.5 py-1.5"
+              onClick={() => {
+                setSearch('');
+                setCategory('all');
+              }}
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       </div>
 

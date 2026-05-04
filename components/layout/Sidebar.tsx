@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Link2, Table2, Settings, Users, ChevronLeft,
-  ChevronRight, LogOut, ChevronDown, ChevronRight as ChevronR
+  ChevronRight, LogOut, ChevronDown, Plus, CalendarDays,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth-context';
@@ -40,6 +40,7 @@ export default function Sidebar({ collapsed, onCollapse, mobileOpen, onCloseMobi
   const navItems = [
     { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/links', icon: Link2, label: 'Links Vault' },
+    { href: '/timetable', icon: CalendarDays, label: 'Timetable' },
   ];
 
   const settingsItems = [
@@ -50,119 +51,51 @@ export default function Sidebar({ collapsed, onCollapse, mobileOpen, onCloseMobi
   const afterNav = () => onCloseMobile?.();
   const tablesActive = pathname.startsWith('/tables');
 
+  const navItemClass = (active: boolean) =>
+    cn(
+      'flex items-center gap-2 rounded-md px-2 py-[6px] text-[13px] font-medium transition-all no-underline',
+      active
+        ? 'bg-[var(--bg-active)] text-[var(--fg)] ring-1 ring-[var(--border-strong)] shadow-sm'
+        : 'text-[var(--fg-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg)]',
+      collapsed && 'justify-center px-0'
+    );
+
   return (
     <aside
       className={cn(
-        'sidebar-shell flex flex-col h-full border-r transition-[width,transform] duration-200 ease-out relative flex-shrink-0 z-50',
-        'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:shadow-2xl max-md:shadow-black/40',
+        'flex flex-col h-full transition-[width,transform] duration-200 ease-out relative flex-shrink-0 z-50',
+        'border-r border-[var(--border)] bg-[var(--bg-muted)]',
+        'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:shadow-2xl',
         'md:translate-x-0',
         mobileOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'
       )}
-      style={{
-        width: collapsed ? '4.25rem' : '16.5rem',
-      }}
+      style={{ width: collapsed ? '3.5rem' : '15rem' }}
     >
-      <div
-        className="flex items-center gap-3 px-4 border-b min-h-[4.25rem]"
-        style={{ borderColor: 'var(--border)' }}
-      >
-        <div className="sidebar-logo-mark flex-shrink-0">DW</div>
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 h-12 flex-shrink-0">
+        <div
+          className="w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-bold flex-shrink-0 text-white shadow-sm"
+          style={{ background: 'linear-gradient(145deg, var(--accent), #22d3ee)' }}
+        >
+          DW
+        </div>
         {!collapsed && (
-          <div className="overflow-hidden min-w-0">
-            <p className="font-semibold text-sm leading-tight truncate tracking-tight" style={{ color: 'var(--text-primary)' }}>
+          <div className="overflow-hidden min-w-0 flex-1">
+            <p className="text-[13px] font-semibold leading-tight truncate text-[var(--fg)]">
               Dev Weekends
             </p>
-            <p className="text-[11px] truncate font-medium" style={{ color: 'var(--text-secondary)' }}>
-              Hub
+            <p className="text-[11px] truncate leading-tight text-[var(--fg-muted)]">
+              Workspace
             </p>
           </div>
         )}
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-4 px-3 flex flex-col gap-1">
-        <p className={cn('sidebar-section-title', collapsed && 'sr-only')}>Navigation</p>
-        {navItems.map(({ href, icon: Icon, label }) => {
-          const active = pathname === href;
-          return (
-            <Link
-              key={href}
-              href={href}
-              onClick={afterNav}
-              title={collapsed ? label : undefined}
-              className={cn(
-                'sidebar-nav-link',
-                active && 'sidebar-nav-link--active',
-                collapsed && 'justify-center px-0'
-              )}
-            >
-              <Icon size={18} strokeWidth={1.75} className="flex-shrink-0 opacity-90" />
-              {!collapsed && <span>{label}</span>}
-            </Link>
-          );
-        })}
-
-        <div className={cn('mt-1', collapsed && 'mt-0.5')}>
-          {collapsed ? (
-            <Link
-              href="/tables"
-              onClick={afterNav}
-              title="Data Tables"
-              className={cn(
-                'sidebar-nav-link',
-                tablesActive && 'sidebar-nav-link--active',
-                'justify-center px-0'
-              )}
-            >
-              <Table2 size={18} strokeWidth={1.75} className="flex-shrink-0 opacity-90" />
-            </Link>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => setTablesOpen(!tablesOpen)}
-                className={cn(
-                  'sidebar-tables-trigger',
-                  tablesOpen && 'sidebar-tables-trigger--open',
-                  tablesActive && 'text-[var(--accent)]'
-                )}
-              >
-                <Table2 size={18} strokeWidth={1.75} className="flex-shrink-0 opacity-90" />
-                <span className="flex-1 text-left">Data Tables</span>
-                {tablesOpen ? <ChevronDown size={15} className="opacity-70" /> : <ChevronR size={15} className="opacity-70" />}
-              </button>
-
-              {tablesOpen && (
-                <div className="mt-1 ml-1 pl-2.5 border-l border-[color:var(--border)] space-y-0.5">
-                  <Link
-                    href="/tables"
-                    onClick={afterNav}
-                    className={cn('sidebar-sub-link', pathname === '/tables' && 'sidebar-sub-link--active')}
-                  >
-                    All tables
-                  </Link>
-                  {tables.map(t => (
-                    <Link
-                      key={t.id}
-                      href={`/tables/${t.id}`}
-                      onClick={afterNav}
-                      className={cn(
-                        'sidebar-sub-link',
-                        pathname === `/tables/${t.id}` && 'sidebar-sub-link--active'
-                      )}
-                    >
-                      <span className="flex-shrink-0 text-[13px] leading-none" aria-hidden>{t.icon}</span>
-                      <span className="truncate">{t.name}</span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        <div className="pt-4 mt-auto border-t space-y-1" style={{ borderColor: 'var(--border)' }}>
-          <p className={cn('sidebar-section-title', collapsed && 'sr-only')}>Account</p>
-          {settingsItems.map(({ href, icon: Icon, label }) => {
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto px-2 pb-2 flex flex-col gap-4">
+        {/* Main nav */}
+        <div className="space-y-0.5">
+          {navItems.map(({ href, icon: Icon, label }) => {
             const active = pathname === href;
             return (
               <Link
@@ -170,66 +103,157 @@ export default function Sidebar({ collapsed, onCollapse, mobileOpen, onCloseMobi
                 href={href}
                 onClick={afterNav}
                 title={collapsed ? label : undefined}
-                className={cn(
-                  'sidebar-nav-link',
-                  active && 'sidebar-nav-link--active',
-                  collapsed && 'justify-center px-0'
-                )}
+                className={navItemClass(active)}
               >
-                <Icon size={18} strokeWidth={1.75} className="flex-shrink-0 opacity-90" />
-                {!collapsed && <span>{label}</span>}
+                <Icon size={15} strokeWidth={1.75} className="flex-shrink-0" />
+                {!collapsed && <span className="truncate">{label}</span>}
               </Link>
             );
           })}
         </div>
+
+        {/* Tables section */}
+        <div>
+          {!collapsed && (
+            <div className="flex items-center justify-between mb-1 px-2 group">
+              <button
+                type="button"
+                onClick={() => setTablesOpen(!tablesOpen)}
+                className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors"
+              >
+                <ChevronDown
+                  size={12}
+                  className={cn('transition-transform', !tablesOpen && '-rotate-90')}
+                />
+                Tables
+              </button>
+              {profile?.role === 'admin' && (
+                <Link
+                  href="/tables"
+                  onClick={afterNav}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-[var(--bg-hover)]"
+                  title="View all tables"
+                >
+                  <Plus size={12} className="text-[var(--fg-muted)]" />
+                </Link>
+              )}
+            </div>
+          )}
+
+          {collapsed ? (
+            <Link
+              href="/tables"
+              onClick={afterNav}
+              title="Tables"
+              className={navItemClass(tablesActive)}
+            >
+              <Table2 size={15} strokeWidth={1.75} />
+            </Link>
+          ) : (
+            tablesOpen && (
+              <div className="space-y-0.5">
+                <Link
+                  href="/tables"
+                  onClick={afterNav}
+                  className={navItemClass(pathname === '/tables')}
+                >
+                  <Table2 size={15} strokeWidth={1.75} className="flex-shrink-0" />
+                  <span className="truncate">All tables</span>
+                </Link>
+                {tables.map((t) => (
+                  <Link
+                    key={t.id}
+                    href={`/tables/${t.id}`}
+                    onClick={afterNav}
+                    className={navItemClass(pathname === `/tables/${t.id}`)}
+                  >
+                    <span className="flex-shrink-0 text-[14px] leading-none w-[15px] text-center" aria-hidden>
+                      {t.icon}
+                    </span>
+                    <span className="truncate">{t.name}</span>
+                  </Link>
+                ))}
+              </div>
+            )
+          )}
+        </div>
+
+        {/* Account */}
+        <div className="mt-auto">
+          {!collapsed && (
+            <p className="text-[11px] font-semibold uppercase tracking-wider px-2 mb-1 text-[var(--fg-muted)]">
+              Account
+            </p>
+          )}
+          <div className="space-y-0.5">
+            {settingsItems.map(({ href, icon: Icon, label }) => {
+              const active = pathname === href;
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={afterNav}
+                  title={collapsed ? label : undefined}
+                  className={navItemClass(active)}
+                >
+                  <Icon size={15} strokeWidth={1.75} className="flex-shrink-0" />
+                  {!collapsed && <span className="truncate">{label}</span>}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
       </nav>
 
-      <div className="border-t px-3 py-4 space-y-3" style={{ borderColor: 'var(--border)' }}>
-        {!collapsed && profile && (
-          <div className="sidebar-user-card">
+      {/* User card */}
+      <div className="border-t border-[var(--border)] flex-shrink-0 p-2">
+        {!collapsed && profile ? (
+          <div className="flex items-center gap-2 px-1.5 py-1.5 rounded-md hover:bg-[var(--bg-hover)] transition-colors group">
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-              style={{ background: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid rgba(16, 185, 129, 0.35)' }}
+              className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold flex-shrink-0"
+              style={{ background: 'var(--bg-active)', color: 'var(--fg)' }}
             >
               {(profile.full_name || profile.email)[0].toUpperCase()}
             </div>
             <div className="overflow-hidden flex-1 min-w-0">
-              <p className="text-xs font-semibold truncate tracking-tight" style={{ color: 'var(--text-primary)' }}>
+              <p className="text-[12.5px] font-medium truncate leading-tight text-[var(--fg)]">
                 {profile.full_name || profile.email}
               </p>
-              <p className="text-[10px] uppercase tracking-wide font-medium truncate" style={{ color: 'var(--text-secondary)' }}>
+              <p className="text-[11px] truncate capitalize leading-tight text-[var(--fg-muted)]">
                 {profile.role}
               </p>
             </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="p-1 rounded text-[var(--fg-muted)] hover:bg-[var(--bg-active)] hover:text-[var(--fg)] opacity-50 group-hover:opacity-100 transition-all"
+              title="Sign out"
+            >
+              <LogOut size={13} strokeWidth={1.75} />
+            </button>
           </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handleLogout}
+            className={navItemClass(false) + ' w-full'}
+            title="Sign out"
+          >
+            <LogOut size={15} strokeWidth={1.75} />
+            {!collapsed && <span>Sign out</span>}
+          </button>
         )}
-        <button
-          type="button"
-          onClick={handleLogout}
-          className={cn(
-            'sidebar-nav-link w-full text-left !text-[var(--text-secondary)] hover:!text-[var(--text-primary)]',
-            collapsed && 'justify-center px-0'
-          )}
-          title={collapsed ? 'Sign out' : undefined}
-        >
-          <LogOut size={18} strokeWidth={1.75} />
-          {!collapsed && <span>Sign out</span>}
-        </button>
       </div>
 
+      {/* Collapse toggle */}
       <button
         type="button"
         onClick={() => onCollapse(!collapsed)}
-        className="absolute -right-3 top-[4.5rem] w-7 h-7 rounded-full items-center justify-center border transition-colors hidden md:flex shadow-sm"
-        style={{
-          background: 'var(--bg-card)',
-          borderColor: 'var(--border)',
-          color: 'var(--text-secondary)',
-          zIndex: 20,
-        }}
+        className="absolute -right-3 top-4 w-6 h-6 rounded-full items-center justify-center border border-[var(--border)] bg-[var(--bg-card)] text-[var(--fg-muted)] hover:text-[var(--fg)] hover:bg-[var(--bg-hover)] transition-all hidden md:flex shadow"
+        style={{ zIndex: 20 }}
         aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
-        {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
       </button>
     </aside>
   );

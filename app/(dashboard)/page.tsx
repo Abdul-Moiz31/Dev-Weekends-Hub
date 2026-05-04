@@ -1,12 +1,11 @@
 'use client';
-import type { CSSProperties } from 'react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { timeAgo } from '@/lib/utils';
 import {
-  Table2, Link2, Users, Rows3, Plus, ArrowRight, Activity, Inbox, UserPlus,
+  Table2, Link2, Users, Rows3, Plus, ArrowRight, Inbox, UserPlus,
 } from 'lucide-react';
 import type { ActivityLog, DynamicTable } from '@/types';
 
@@ -41,7 +40,7 @@ export default function DashboardPage() {
         supabase.from('links').select('*', { count: 'exact', head: true }),
         supabase.from('table_rows').select('*', { count: 'exact', head: true }),
         supabase.from('profiles').select('*', { count: 'exact', head: true }),
-        supabase.from('activity_log').select('*, profiles(full_name, email, avatar_url)').order('created_at', { ascending: false }).limit(12),
+        supabase.from('activity_log').select('*, profiles(full_name, email, avatar_url)').order('created_at', { ascending: false }).limit(8),
         supabase.from('dynamic_tables').select('id, name, icon, created_at, updated_at').order('updated_at', { ascending: false }).limit(6),
       ]);
       setStats({ tables: tableCount || 0, links: linkCount || 0, rows: rowCount || 0, members: memberCount || 0 });
@@ -53,16 +52,14 @@ export default function DashboardPage() {
   }, [supabase]);
 
   const statTiles = [
-    { label: 'Data tables', value: stats.tables, icon: Table2, color: '#3b82f6', href: '/tables', hint: 'Spreadsheets' },
-    { label: 'Links', value: stats.links, icon: Link2, color: '#10b981', href: '/links', hint: 'Vault' },
-    { label: 'Total rows', value: stats.rows, icon: Rows3, color: '#f59e0b', href: '/tables', hint: 'Across tables' },
+    { label: 'Tables', value: stats.tables, icon: Table2, href: '/tables' },
+    { label: 'Links', value: stats.links, icon: Link2, href: '/links' },
+    { label: 'Total rows', value: stats.rows, icon: Rows3, href: '/tables' },
     {
-      label: 'Team',
+      label: 'Members',
       value: stats.members,
       icon: Users,
-      color: '#8b5cf6',
       href: isAdmin ? '/settings/members' : '/settings',
-      hint: 'Members',
     },
   ];
 
@@ -79,199 +76,259 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-10 sm:space-y-12 pb-2">
-      <header className="space-y-2 sm:space-y-3 max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--accent)' }}>Overview</p>
-        <h2 className="text-2xl sm:text-3xl lg:text-[2rem] font-bold tracking-tight leading-tight" style={{ color: 'var(--text-primary)' }}>
+    <div className="max-w-6xl mx-auto">
+      {/* Page header */}
+      <header className="mb-8">
+        <h1 className="text-[26px] font-semibold tracking-tight text-[var(--fg)]">
           Welcome back{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}
-        </h2>
-        <p className="text-sm sm:text-[0.9375rem] max-w-2xl leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          Snapshot of workspace data. Jump into tables or the links vault to work; activity shows recent team changes.
+        </h1>
+        <p className="text-[14px] mt-1 text-[var(--fg-muted)]">
+          Here&apos;s what&apos;s happening in your workspace today.
         </p>
       </header>
 
-      {/* KPI row — each tile links to the relevant area */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-        {statTiles.map(({ label, value, icon: Icon, color, href, hint }) => (
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+        {statTiles.map(({ label, value, icon: Icon, href }) => (
           <Link
             key={label}
             href={href}
-            className="dash-stat-card block no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-            style={{ '--dash-stat-accent': color } as CSSProperties}
+            className="group relative px-4 py-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--border-strong)] transition-all hover:-translate-y-0.5 hover:shadow-md no-underline overflow-hidden"
           >
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-[var(--accent)] opacity-70" />
+            <div className="flex items-center gap-2 mb-3 text-[var(--fg-muted)]">
+              <Icon size={14} strokeWidth={1.75} />
+              <span className="text-[12px] font-medium">{label}</span>
+            </div>
             {loading ? (
-              <div className="space-y-2.5">
-                <div className="skeleton h-3.5 w-20" />
-                <div className="skeleton h-8 w-12" />
-              </div>
+              <div className="skeleton h-7 w-12" />
             ) : (
-              <>
-                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>{hint}</p>
-                <div className="flex items-start justify-between gap-3">
-                  <span className="text-[0.8125rem] font-semibold leading-snug pr-2" style={{ color: 'var(--text-primary)' }}>{label}</span>
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: color + '18' }}>
-                    <Icon size={18} style={{ color }} strokeWidth={1.75} />
-                  </div>
-                </div>
-                <p className="text-2xl sm:text-[1.75rem] font-bold tracking-tight tabular-nums mt-auto pt-0.5" style={{ color: 'var(--text-primary)' }}>{value}</p>
-              </>
+              <p className="text-[26px] font-semibold tabular-nums leading-none text-[var(--fg)]">
+                {value}
+              </p>
             )}
+            <ArrowRight
+              size={13}
+              className="absolute top-4 right-4 text-[var(--fg-subtle)] opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all"
+            />
           </Link>
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-5 gap-6 lg:gap-8 lg:items-stretch">
-        <section className="surface-card p-6 sm:p-7 lg:col-span-3 flex flex-col h-full min-h-[260px]">
-          <div className="flex items-center justify-between gap-3 mb-5 flex-shrink-0">
-            <h3 className="font-semibold text-lg tracking-tight" style={{ color: 'var(--text-primary)' }}>Recent activity</h3>
+      {/* Two column section */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Activity feed - takes 2/3 */}
+        <section className="lg:col-span-2">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-[14px] font-semibold tracking-tight text-[var(--fg)]">
+              Recent activity
+            </h2>
             {!loading && activity.length > 0 && (
-              <span
-                className="text-xs font-semibold tabular-nums px-2.5 py-1 rounded-lg"
-                style={{ color: 'var(--accent)', background: 'var(--accent-soft)', border: '1px solid rgba(16, 185, 129, 0.25)' }}
-              >
-                Last {activity.length}
+              <span className="text-[12px] text-[var(--fg-muted)]">
+                Last {activity.length} updates
               </span>
             )}
           </div>
 
-          {loading ? (
-            <div className="space-y-3 flex-1">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex gap-3">
-                  <div className="skeleton w-8 h-8 rounded-xl flex-shrink-0" />
-                  <div className="flex-1 space-y-1.5">
-                    <div className="skeleton h-3.5 w-4/5" />
-                    <div className="skeleton h-3 w-1/3" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : activity.length === 0 ? (
-            <div className="empty-state flex-1 my-auto">
-              <div className="empty-state__icon">
-                <Inbox size={22} strokeWidth={1.75} />
-              </div>
-              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>No activity yet</p>
-              <p className="text-sm mt-1 max-w-xs mx-auto" style={{ color: 'var(--text-secondary)' }}>
-                When your team creates tables, adds links, or edits rows, it will show up here.
-              </p>
-              <div className="flex flex-wrap gap-2 justify-center mt-5">
-                <Link href="/tables" className="btn-primary text-sm">
-                  <Table2 size={15} /> Open tables
-                </Link>
-                <Link href="/links" className="btn-secondary text-sm">
-                  <Link2 size={15} /> Links vault
-                </Link>
-              </div>
-            </div>
-          ) : (
-            <div className="divide-y flex-1 min-h-0 overflow-y-auto -mx-0.5 pr-1" style={{ borderColor: 'var(--border)' }}>
-              {activity.map(a => {
-                const name = a.profiles?.full_name || a.profiles?.email || 'Someone';
-                const action = actionLabels[a.action] || a.action;
-                return (
-                  <div key={a.id} className="flex items-start gap-3.5 py-3.5 first:pt-0 last:pb-0 px-0.5">
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5"
-                      style={{ background: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid rgba(16, 185, 129, 0.35)' }}>
-                      {name[0].toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm leading-snug" style={{ color: 'var(--text-primary)' }}>
-                        <span className="font-semibold">{name}</span>{' '}
-                        <span style={{ color: 'var(--text-secondary)' }}>{action}</span>{' '}
-                        {a.entity_name && <span className="font-medium">{a.entity_name}</span>}
-                      </p>
-                      <p className="text-[11px] mt-1 font-medium tabular-nums" style={{ color: 'var(--text-secondary)' }}>{timeAgo(a.created_at)}</p>
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-sm overflow-hidden">
+            {loading ? (
+              <div className="p-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex gap-3 p-3 items-center">
+                    <div className="skeleton w-7 h-7 rounded-full flex-shrink-0" />
+                    <div className="flex-1 space-y-1.5">
+                      <div className="skeleton h-3.5 w-4/5" />
+                      <div className="skeleton h-3 w-1/4" />
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                ))}
+              </div>
+            ) : activity.length === 0 ? (
+              <EmptyState
+                icon={<Inbox size={20} strokeWidth={1.75} />}
+                title="No activity yet"
+                description="When your team creates tables, adds links, or edits rows, it will show up here."
+              />
+            ) : (
+              <ul className="divide-y divide-[var(--border)]">
+                {activity.map((a) => {
+                  const name = a.profiles?.full_name || a.profiles?.email || 'Someone';
+                  const action = actionLabels[a.action] || a.action;
+                  return (
+                    <li
+                      key={a.id}
+                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--bg-hover)] transition-colors"
+                    >
+                      <div
+                        className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold flex-shrink-0"
+                        style={{ background: 'var(--bg-active)', color: 'var(--fg)' }}
+                      >
+                        {name[0].toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] leading-snug truncate text-[var(--fg)]">
+                          <span className="font-medium">{name}</span>{' '}
+                          <span className="text-[var(--fg-muted)]">{action}</span>{' '}
+                          {a.entity_name && <span className="font-medium">{a.entity_name}</span>}
+                        </p>
+                      </div>
+                      <span className="text-[12px] tabular-nums flex-shrink-0 text-[var(--fg-muted)]">
+                        {timeAgo(a.created_at)}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </section>
 
-        <div className="lg:col-span-2 flex flex-col gap-5 h-full min-h-0">
-          <section className="surface-card p-5 sm:p-6 flex-shrink-0">
-            <div className="flex items-center gap-2.5 mb-4">
-              <Activity size={18} style={{ color: 'var(--accent)' }} strokeWidth={1.75} />
-              <h3 className="font-semibold text-lg tracking-tight" style={{ color: 'var(--text-primary)' }}>Quick actions</h3>
-            </div>
-            <div className="space-y-1.5">
+        {/* Right side */}
+        <aside className="space-y-6">
+          {/* Quick actions */}
+          <section>
+            <h2 className="text-[14px] font-semibold tracking-tight mb-3 text-[var(--fg)]">
+              Quick actions
+            </h2>
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-sm divide-y divide-[var(--border)] overflow-hidden">
               {isAdmin && (
-                <Link href="/settings/members" className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-[var(--bg-hover)] no-underline"
-                  style={{ color: 'var(--text-primary)' }}>
-                  <UserPlus size={16} style={{ color: 'var(--accent)' }} strokeWidth={2} />
-                  Invite teammate
-                </Link>
+                <ActionRow
+                  href="/settings/members"
+                  icon={<UserPlus size={14} strokeWidth={1.75} />}
+                  label="Invite teammate"
+                />
               )}
               {isAdmin && (
-                <Link href="/tables" className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-[var(--bg-hover)] no-underline"
-                  style={{ color: 'var(--text-primary)' }}>
-                  <Plus size={16} style={{ color: 'var(--accent)' }} strokeWidth={2} />
-                  Create new table
-                </Link>
+                <ActionRow
+                  href="/tables"
+                  icon={<Plus size={14} strokeWidth={2} />}
+                  label="Create new table"
+                />
               )}
               {canManageLinks && (
-                <Link href="/links" className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-[var(--bg-hover)] no-underline"
-                  style={{ color: 'var(--text-primary)' }}>
-                  <Plus size={16} style={{ color: 'var(--accent)' }} strokeWidth={2} />
-                  Add link
-                </Link>
+                <ActionRow
+                  href="/links"
+                  icon={<Link2 size={14} strokeWidth={1.75} />}
+                  label="Add a link"
+                />
               )}
               {!isAdmin && !canManageLinks && (
-                <p className="text-xs leading-relaxed px-3 py-3 rounded-xl" style={{ color: 'var(--text-secondary)', background: 'var(--bg-hover)' }}>
-                  You have view-only access. Ask an admin for editor permissions to add tables or links.
+                <p className="text-[12px] leading-relaxed px-4 py-3 text-[var(--fg-muted)]">
+                  You have view-only access. Ask an admin for editor permissions.
                 </p>
               )}
             </div>
           </section>
 
-          <section className="surface-card p-5 sm:p-6 flex-1 flex flex-col min-h-0">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-lg tracking-tight" style={{ color: 'var(--text-primary)' }}>Tables</h3>
-              <Link href="/tables" className="text-xs font-semibold hover:underline" style={{ color: 'var(--accent)' }}>
+          {/* Tables list */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-[14px] font-semibold tracking-tight text-[var(--fg)]">
+                Tables
+              </h2>
+              <Link
+                href="/tables"
+                className="text-[12px] text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors"
+              >
                 View all
               </Link>
             </div>
-            {loading ? (
-              <div className="space-y-2 flex-1">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="skeleton h-10 rounded-xl" />
-                ))}
-              </div>
-            ) : tables.length === 0 ? (
-              <div className="empty-state flex-1 border-none bg-transparent py-8 justify-center min-h-0 my-auto">
-                <div className="empty-state__icon">
-                  <Table2 size={22} strokeWidth={1.75} />
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-sm overflow-hidden">
+              {loading ? (
+                <div className="p-2 space-y-1">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="skeleton h-8 rounded" />
+                  ))}
                 </div>
-                <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>No tables yet</p>
-                <p className="text-xs mt-1 max-w-[220px] mx-auto" style={{ color: 'var(--text-secondary)' }}>
-                  {isAdmin ? 'Create a table to track sessions, cohorts, or anything your team needs.' : 'An admin can create the first workspace table.'}
-                </p>
-                {isAdmin && (
-                  <Link href="/tables" className="btn-primary text-sm mt-4">
-                    <Plus size={15} /> Create table
-                  </Link>
-                )}
-              </div>
-            ) : (
-              <ul className="space-y-1 flex-1 min-h-0 overflow-y-auto">
-                {tables.map(t => (
-                  <li key={t.id}>
-                    <Link href={`/tables/${t.id}`}
-                      className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-[var(--bg-hover)] group no-underline"
-                      style={{ color: 'var(--text-primary)' }}>
-                      <span className="text-base leading-none" aria-hidden>{t.icon}</span>
-                      <span className="flex-1 truncate">{t.name}</span>
-                      <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" style={{ color: 'var(--text-secondary)' }} />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
+              ) : tables.length === 0 ? (
+                <EmptyState
+                  icon={<Table2 size={20} strokeWidth={1.75} />}
+                  title="No tables yet"
+                  description={
+                    isAdmin
+                      ? 'Create your first table to get started.'
+                      : 'Ask an admin to create one.'
+                  }
+                  compact
+                />
+              ) : (
+                <ul className="divide-y divide-[var(--border)]">
+                  {tables.map((t) => (
+                    <li key={t.id}>
+                      <Link
+                        href={`/tables/${t.id}`}
+                        className="flex items-center gap-2 px-4 py-2.5 text-[13px] font-medium text-[var(--fg)] hover:bg-[var(--bg-hover)] transition-colors group no-underline"
+                      >
+                        <span className="text-[14px] leading-none w-4 text-center" aria-hidden>
+                          {t.icon}
+                        </span>
+                        <span className="flex-1 truncate">{t.name}</span>
+                        <ArrowRight
+                          size={13}
+                          className="text-[var(--fg-muted)] opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all"
+                        />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </section>
-        </div>
+        </aside>
       </div>
+    </div>
+  );
+}
+
+function ActionRow({
+  href,
+  icon,
+  label,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] font-medium text-[var(--fg)] hover:bg-[var(--bg-hover)] transition-colors group no-underline"
+    >
+      <span className="text-[var(--fg-muted)]">{icon}</span>
+      <span className="flex-1">{label}</span>
+      <ArrowRight
+        size={13}
+        className="text-[var(--fg-muted)] opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all"
+      />
+    </Link>
+  );
+}
+
+function EmptyState({
+  icon,
+  title,
+  description,
+  compact,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={`flex flex-col items-center justify-center text-center px-4 ${
+        compact ? 'py-8' : 'py-12'
+      }`}
+    >
+      <div
+        className="w-10 h-10 rounded-md flex items-center justify-center mb-3 text-[var(--fg-muted)]"
+        style={{ background: 'var(--bg-muted)' }}
+      >
+        {icon}
+      </div>
+      <p className="text-[14px] font-medium text-[var(--fg)]">{title}</p>
+      <p className="text-[12.5px] mt-1 max-w-[220px] text-[var(--fg-muted)]">{description}</p>
     </div>
   );
 }

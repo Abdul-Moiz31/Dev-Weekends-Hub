@@ -9,6 +9,7 @@ import DashboardAuthGate from '@/components/layout/DashboardAuthGate';
 const PAGE_TITLES: Record<string, string> = {
   '/': 'Dashboard',
   '/links': 'Links Vault',
+  '/timetable': 'Timetable',
   '/tables': 'Data Tables',
   '/settings': 'Settings',
   '/settings/members': 'Team Members',
@@ -27,7 +28,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <DashboardAuthGate>
-      <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
+      <div className="flex h-screen overflow-hidden bg-[var(--bg)]">
         {mobileNavOpen && (
           <button
             type="button"
@@ -48,7 +49,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             onOpenMobileNav={() => setMobileNavOpen(true)}
             onNavigate={() => setMobileNavOpen(false)}
           />
-          <main className="flex-1 min-h-0 overflow-y-auto page-shell">{children}</main>
+          <main className="flex-1 min-h-0 overflow-y-auto">
+            <div className="px-6 sm:px-8 py-6 sm:py-8 min-h-full flex flex-col">{children}</div>
+          </main>
         </div>
       </div>
     </DashboardAuthGate>
