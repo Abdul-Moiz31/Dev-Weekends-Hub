@@ -263,12 +263,127 @@ textarea.input::placeholder {
   width: max-content;
   min-width: 100%;
 }
-.table-shell .data-table th {
+/* Header row: # / actions stay compact; data columns use .data-table__col-heading */
+.table-shell .data-table thead th {
   background: var(--bg-hover);
-  font-size: 11px;
+  border-bottom: 1px solid var(--border);
+}
+.table-shell .data-table thead th.data-table__rownum,
+.table-shell .data-table thead th.data-table__actions {
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+.table-shell .data-table thead th.data-table__col-heading {
+  text-transform: none;
+  letter-spacing: -0.02em;
+  font-size: 0.8125rem;
   font-weight: 600;
+  color: var(--text-primary);
+  white-space: normal;
+  background: color-mix(in srgb, var(--bg-secondary) 82%, var(--accent) 14%);
+  border-bottom: 2px solid color-mix(in srgb, var(--accent) 42%, var(--border));
+  padding: 10px 12px;
+  vertical-align: top;
+  min-width: 9.5rem;
+  max-width: 16rem;
+}
+.table-shell .col-heading-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: stretch;
+  min-height: 2.75rem;
+}
+.table-shell .col-heading-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  min-width: 0;
+}
+.table-shell .col-heading-type-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+}
+.table-shell .col-heading-name-btn {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: default;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  border-radius: 6px;
+}
+.table-shell .col-heading-name-btn:disabled {
+  cursor: default;
+  opacity: 1;
+}
+.table-shell th.data-table__col-heading .col-heading-name-btn:not(:disabled) {
+  cursor: pointer;
+}
+.table-shell th.data-table__col-heading .col-heading-name-btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--bg-hover) 70%, transparent);
+}
+.table-shell .col-heading-name-btn:not(:disabled):hover .col-heading-edit-icon {
+  opacity: 0.85;
+}
+.table-shell .col-heading-name {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+  line-height: 1.35;
+}
+.table-shell .col-heading-edit-icon {
+  flex-shrink: 0;
+  opacity: 0.35;
+  color: var(--text-secondary);
+  transition: opacity 0.15s ease;
+}
+.table-shell .col-heading-type-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  padding-left: 1.75rem;
+}
+.table-shell .col-heading-input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  padding: 4px 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 .table-shell .data-table td {
   min-width: 120px;

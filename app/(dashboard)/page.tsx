@@ -75,6 +75,7 @@ export default function DashboardPage() {
     deleted_link: 'deleted link',
     updated_link: 'updated link',
     deleted_table: 'deleted table',
+    renamed_column: 'renamed column',
   };
 
   return (

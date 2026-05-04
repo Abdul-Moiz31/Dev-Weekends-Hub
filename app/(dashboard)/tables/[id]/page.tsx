@@ -7,11 +7,11 @@ import { logActivity } from '@/lib/activity';
 import Cell from '@/components/tables/CellRenderer';
 import { toast } from 'sonner';
 import {
-  Plus, Download, Search, Trash2, Copy, Loader2, Columns3,
+  Plus, Download, Search, Trash2, Copy, Loader2, Columns3, Pencil,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import type { DynamicTable, TableColumn, TableRow } from '@/types';
-import { FIELD_TYPE_ICONS } from '@/components/tables/fieldTypeIcons';
+import { FIELD_TYPE_ICONS, FIELD_TYPE_LABELS } from '@/components/tables/fieldTypeIcons';
 
 interface EditingCell {
   rowId: string;
@@ -34,8 +34,13 @@ export default function TableViewPage() {
   const [addingRow, setAddingRow] = useState(false);
   const [colMenuOpen, setColMenuOpen] = useState(false);
   const [hiddenColIds, setHiddenColIds] = useState<Set<string>>(() => new Set());
+  const [editingHeaderId, setEditingHeaderId] = useState<string | null>(null);
+  const [headerDraft, setHeaderDraft] = useState('');
+  const [savingHeader, setSavingHeader] = useState(false);
 
   const myUserIdRef = useRef<string | null>(null);
+  const headerInputRef = useRef<HTMLInputElement>(null);
+  const ignoreHeaderBlurRef = useRef(false);
   const skipRemoteToastUntilRef = useRef(0);
   const lastRemoteToastRef = useRef(0);
   const colMenuRef = useRef<HTMLDivElement>(null);
@@ -111,6 +116,23 @@ export default function TableViewPage() {
     return () => document.removeEventListener('mousedown', close);
   }, []);
 
+  useEffect(() => {
+    if (!editingHeaderId) return;
+    const t = window.setTimeout(() => {
+      headerInputRef.current?.focus();
+      headerInputRef.current?.select();
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [editingHeaderId]);
+
+  useEffect(() => {
+    if (editingHeaderId && hiddenColIds.has(editingHeaderId)) {
+      ignoreHeaderBlurRef.current = false;
+      setEditingHeaderId(null);
+      setHeaderDraft('');
+    }
+  }, [editingHeaderId, hiddenColIds]);
+
   const visibleColumns = columns.filter(c => !hiddenColIds.has(c.id));
 
   const filteredRows = rows.filter(row => {
@@ -180,6 +202,52 @@ export default function TableViewPage() {
       await logActivity('added_row', 'row', newRow?.id, table?.name);
       toast.success('Row duplicated');
     }
+  };
+
+  const cancelRenameColumn = () => {
+    ignoreHeaderBlurRef.current = false;
+    setEditingHeaderId(null);
+    setHeaderDraft('');
+  };
+
+  const beginRenameColumn = (col: TableColumn) => {
+    if (!isAdmin) return;
+    setEditing(null);
+    setEditingHeaderId(col.id);
+    setHeaderDraft(col.name);
+  };
+
+  const saveRenameColumn = async (colId: string, rawFromInput?: string) => {
+    if (!isAdmin || savingHeader) return;
+    const col = columns.find(c => c.id === colId);
+    if (!col) {
+      cancelRenameColumn();
+      return;
+    }
+    const raw = (rawFromInput ?? headerDraft).trim();
+    const next = raw || col.name;
+    if (next === col.name) {
+      cancelRenameColumn();
+      return;
+    }
+    setSavingHeader(true);
+    bumpSkipRemoteToast();
+    const { error } = await supabase.from('table_columns').update({ name: next }).eq('id', colId);
+    if (error) {
+      toast.error(error.message || 'Could not rename column');
+      cancelRenameColumn();
+      setSavingHeader(false);
+      return;
+    }
+    setColumns(prev => prev.map(c => (c.id === colId ? { ...c, name: next } : c)));
+    await logActivity('renamed_column', 'column', colId, next, {
+      table_id: id,
+      table_name: table?.name,
+      previous: col.name,
+    });
+    toast.success('Column renamed');
+    cancelRenameColumn();
+    setSavingHeader(false);
   };
 
   const exportCSV = () => {
@@ -351,17 +419,61 @@ export default function TableViewPage() {
           <table className="data-table">
             <thead>
               <tr>
-                <th style={{ width: '40px', paddingLeft: '8px' }}>#</th>
+                <th className="data-table__rownum">#</th>
                 {visibleColumns.map(col => (
-                  <th key={col.id} style={{ minWidth: '120px', maxWidth: '280px' }}>
-                    <div className="flex items-center gap-1.5">
-                      <span style={{ color: 'var(--accent)', fontSize: '11px' }}>{FIELD_TYPE_ICONS[col.field_type]}</span>
-                      {col.name}
-                      {col.is_required && <span style={{ color: 'var(--accent)' }}>*</span>}
+                  <th key={col.id} className="data-table__col-heading">
+                    <div className="col-heading-cell">
+                      <div className="col-heading-top">
+                        <span className="col-heading-type-icon" aria-hidden>{FIELD_TYPE_ICONS[col.field_type]}</span>
+                        {editingHeaderId === col.id ? (
+                          <input
+                            ref={headerInputRef}
+                            className="col-heading-input"
+                            value={headerDraft}
+                            onChange={e => setHeaderDraft(e.target.value)}
+                            maxLength={120}
+                            disabled={savingHeader}
+                            aria-label={`Rename column, was ${col.name}`}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                ignoreHeaderBlurRef.current = true;
+                                void saveRenameColumn(col.id, (e.target as HTMLInputElement).value);
+                              }
+                              if (e.key === 'Escape') {
+                                e.preventDefault();
+                                cancelRenameColumn();
+                              }
+                            }}
+                            onBlur={e => {
+                              if (ignoreHeaderBlurRef.current) {
+                                ignoreHeaderBlurRef.current = false;
+                                return;
+                              }
+                              void saveRenameColumn(col.id, e.currentTarget.value);
+                            }}
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            className="col-heading-name-btn"
+                            disabled={!isAdmin}
+                            onClick={() => beginRenameColumn(col)}
+                            title={isAdmin ? 'Rename column' : undefined}
+                          >
+                            <span className="col-heading-name">{col.name}</span>
+                            {col.is_required && (
+                              <span style={{ color: 'var(--accent)' }} aria-label="required">*</span>
+                            )}
+                            {isAdmin && <Pencil className="col-heading-edit-icon" size={12} strokeWidth={2} aria-hidden />}
+                          </button>
+                        )}
+                      </div>
+                      <span className="col-heading-type-label">{FIELD_TYPE_LABELS[col.field_type]}</span>
                     </div>
                   </th>
                 ))}
-                {canEdit && <th style={{ width: '70px' }}>Actions</th>}
+                {canEdit && <th className="data-table__actions">Actions</th>}
               </tr>
             </thead>
             <tbody>
