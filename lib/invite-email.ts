@@ -30,7 +30,7 @@ export async function sendInviteCredentialsEmail(params: {
   const vars = {
     recipient_name: escapeHtml(params.inviteeName || 'there'),
     temporary_password: escapeHtml(params.temporaryPassword),
-    login_url: `${base}/login`,
+    login_url: `${base}/`,
   };
 
   const r: EmailSendResult = await sendResendHtml({
