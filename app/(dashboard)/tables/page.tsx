@@ -48,7 +48,8 @@ export default function TablesPage() {
     name: string,
     icon: string,
     description: string,
-    columns: { name: string; field_type: string; position: number; is_required: boolean; options: unknown; localId?: string }[]
+    columns: { name: string; field_type: string; position: number; is_required: boolean; options: unknown; localId?: string }[],
+    mentors: { slotCount: 1 | 2 | 3; profileIds: string[] }
   ) => {
     const { data: { user } } = await supabase.auth.getUser();
     const { data: newTable, error } = await supabase
@@ -83,6 +84,18 @@ export default function TablesPage() {
       await supabase.from('dynamic_tables').delete().eq('id', newTable.id);
       toast.error('Failed to add columns');
       return '';
+    }
+
+    if (mentors.profileIds.length > 0) {
+      const mentorRows = mentors.profileIds.map((profile_id, i) => ({
+        table_id: newTable.id,
+        profile_id,
+        slot: i + 1,
+      }));
+      const { error: mentorErr } = await supabase.from('table_mentors').insert(mentorRows);
+      if (mentorErr) {
+        toast.error('Table created, but mentors could not be saved. Assign them from the table page (run DB migration if needed).');
+      }
     }
 
     toast.success(`Table "${name}" created!`);
@@ -192,7 +205,7 @@ export default function TablesPage() {
         <CreateTableModal
           onClose={() => setShowCreate(false)}
           onCreated={() => {}}
-          onCreate={handleCreate as never}
+          onCreate={handleCreate}
         />
       )}
 

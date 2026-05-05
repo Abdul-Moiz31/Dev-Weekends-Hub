@@ -48,6 +48,23 @@ export interface DynamicTable {
   row_count?: number;
 }
 
+/** Assigned mentors for a sheet (slots 1–3); profiles joined when querying */
+export interface TableMentor {
+  id: string;
+  table_id: string;
+  profile_id: string;
+  slot: number;
+  created_at: string;
+  profiles?: Pick<Profile, 'full_name' | 'email'>;
+}
+
+/** Passed when creating a table */
+export interface MentorSelectionPayload {
+  slotCount: 1 | 2 | 3;
+  /** Profile IDs in slot order; omit or duplicate-filtered client-side */
+  profileIds: string[];
+}
+
 export interface TableRow {
   id: string;
   table_id: string;

@@ -1,12 +1,14 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Trash2, GripVertical, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { FieldType, TableColumn } from '@/types';
+import { createClient } from '@/lib/supabase/client';
+import type { FieldType, MentorSelectionPayload, Profile, TableColumn } from '@/types';
 import { DEFAULT_STATUS_OPTIONS } from '@/types';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const FIELD_TYPES: { type: FieldType; label: string; icon: string; desc: string }[] = [
   { type: 'text', label: 'Text', icon: 'T', desc: 'Short text' },
@@ -105,7 +107,17 @@ function SortableCol({ col, onRemove, onChange }: SortableColProps) {
 interface CreateTableModalProps {
   onClose: () => void;
   onCreated: (tableId: string) => void;
-  onCreate: (name: string, icon: string, description: string, columns: ColDraft[]) => Promise<string>;
+  onCreate: (
+    name: string,
+    icon: string,
+    description: string,
+    columns: ColDraft[],
+    mentors: MentorSelectionPayload
+  ) => Promise<string>;
+}
+
+function profileOptionLabel(p: Pick<Profile, 'full_name' | 'email'>) {
+  return (p.full_name && p.full_name.trim()) || p.email;
 }
 
 export default function CreateTableModal({ onClose, onCreate }: CreateTableModalProps) {
@@ -114,7 +126,21 @@ export default function CreateTableModal({ onClose, onCreate }: CreateTableModal
   const [icon, setIcon] = useState('📋');
   const [description, setDescription] = useState('');
   const [columns, setColumns] = useState<ColDraft[]>([]);
+  const [mentorSlotCount, setMentorSlotCount] = useState<1 | 2 | 3>(2);
+  const [mentorPick, setMentorPick] = useState<[string, string, string]>(['', '', '']);
+  const [profiles, setProfiles] = useState<Pick<Profile, 'id' | 'email' | 'full_name'>[]>([]);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const supabase = createClient();
+      const { data } = await supabase.from('profiles').select('id, email, full_name').order('full_name');
+      if (!cancelled) setProfiles(data || []);
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -154,9 +180,32 @@ export default function CreateTableModal({ onClose, onCreate }: CreateTableModal
 
   const handleCreate = async () => {
     if (!name.trim()) return;
+    const picks = mentorPick.slice(0, mentorSlotCount).filter((pid): pid is string => Boolean(pid));
+    if (new Set(picks).size !== picks.length) {
+      toast.error('Choose a different mentor for each slot');
+      return;
+    }
+    const mentors: MentorSelectionPayload = {
+      slotCount: mentorSlotCount,
+      profileIds: picks,
+    };
     setSaving(true);
-    await onCreate(name.trim(), icon, description.trim(), columns.map((c, i) => ({ ...c, position: i })));
+    await onCreate(
+      name.trim(),
+      icon,
+      description.trim(),
+      columns.map((c, i) => ({ ...c, position: i })),
+      mentors
+    );
     setSaving(false);
+  };
+
+  const setMentorAt = (index: 0 | 1 | 2, value: string) => {
+    setMentorPick(prev => {
+      const next: [string, string, string] = [...prev];
+      next[index] = value;
+      return next;
+    });
   };
 
   return (
@@ -171,7 +220,7 @@ export default function CreateTableModal({ onClose, onCreate }: CreateTableModal
               </button>
             )}
             <h2 className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
-              {step === 1 ? 'Create Table' : step === 2 ? 'Define Columns' : 'Review & Create'}
+              {step === 1 ? 'Details' : step === 2 ? 'Responsible mentors' : step === 3 ? 'Define columns' : 'Review & create'}
             </h2>
           </div>
           <button className="btn-ghost p-1.5" onClick={onClose}><X size={16} /></button>
@@ -179,7 +228,7 @@ export default function CreateTableModal({ onClose, onCreate }: CreateTableModal
 
         {/* Steps indicator */}
         <div className="flex gap-1 mb-5">
-          {[1, 2, 3].map(s => (
+          {[1, 2, 3, 4].map(s => (
             <div key={s} className="h-1 flex-1 rounded-full transition-colors"
               style={{ background: s <= step ? 'var(--accent)' : 'var(--border)' }} />
           ))}
@@ -222,8 +271,54 @@ export default function CreateTableModal({ onClose, onCreate }: CreateTableModal
           </div>
         )}
 
-        {/* Step 2: Define Columns */}
+        {/* Step 2: Mentors */}
         {step === 2 && (
+          <div className="space-y-4">
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              Pick up to three workspace members responsible for this sheet. They must already have a Hub account (invite them under Settings → Members first).
+            </p>
+            <div>
+              <label className="label">How many mentors?</label>
+              <div className="segmented inline-flex w-full sm:w-auto">
+                {([1, 2, 3] as const).map(n => (
+                  <button
+                    key={n}
+                    type="button"
+                    className={mentorSlotCount === n ? 'is-active' : ''}
+                    onClick={() => setMentorSlotCount(n)}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {([0, 1, 2] as const).slice(0, mentorSlotCount).map(slotIdx => (
+              <div key={slotIdx}>
+                <label className="label" htmlFor={`mentor-${slotIdx}`}>Mentor {slotIdx + 1}</label>
+                <select
+                  id={`mentor-${slotIdx}`}
+                  className="input"
+                  value={mentorPick[slotIdx]}
+                  onChange={e => setMentorAt(slotIdx, e.target.value)}
+                >
+                  <option value="">— Optional —</option>
+                  {profiles.map(p => (
+                    <option key={p.id} value={p.id}>{profileOptionLabel(p)}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+            <div className="flex gap-2 pt-1">
+              <button className="btn-secondary flex-1" type="button" onClick={() => setStep(1)}>Back</button>
+              <button className="btn-primary flex-1 justify-center" type="button" onClick={() => setStep(3)}>
+                Next <ChevronRight size={15} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Define Columns */}
+        {step === 3 && (
           <div className="space-y-4">
             <div>
               <label className="label mb-2">Add Columns</label>
@@ -258,16 +353,16 @@ export default function CreateTableModal({ onClose, onCreate }: CreateTableModal
             )}
 
             <div className="flex gap-2 pt-1">
-              <button className="btn-secondary flex-1" onClick={() => setStep(1)}>Back</button>
-              <button className="btn-primary flex-1 justify-center" onClick={() => setStep(3)}>
+              <button className="btn-secondary flex-1" type="button" onClick={() => setStep(2)}>Back</button>
+              <button className="btn-primary flex-1 justify-center" type="button" onClick={() => setStep(4)}>
                 Review <ChevronRight size={15} />
               </button>
             </div>
           </div>
         )}
 
-        {/* Step 3: Review */}
-        {step === 3 && (
+        {/* Step 4: Review */}
+        {step === 4 && (
           <div className="space-y-4">
             <div className="border rounded-xl p-4 space-y-3" style={{ borderColor: 'var(--border)', background: 'var(--bg-secondary)' }}>
               <div className="flex items-center gap-3">
@@ -276,6 +371,23 @@ export default function CreateTableModal({ onClose, onCreate }: CreateTableModal
                   <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{name}</p>
                   {description && <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{description}</p>}
                 </div>
+              </div>
+              <div>
+                <p className="text-xs mb-1 font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>
+                  Responsible mentors
+                </p>
+                <ul className="text-sm space-y-0.5" style={{ color: 'var(--text-primary)' }}>
+                  {mentorPick.slice(0, mentorSlotCount).every(id => !id) ? (
+                    <li style={{ color: 'var(--text-secondary)' }}>None chosen — you can assign mentors on this table page later.</li>
+                  ) : (
+                    mentorPick.slice(0, mentorSlotCount).map((pid, i) => {
+                      const p = profiles.find(x => x.id === pid);
+                      return (
+                        <li key={i}>{pid && p ? profileOptionLabel(p) : `Slot ${i + 1}: —`}</li>
+                      );
+                    })
+                  )}
+                </ul>
               </div>
               {columns.length > 0 ? (
                 <div>
@@ -299,7 +411,7 @@ export default function CreateTableModal({ onClose, onCreate }: CreateTableModal
             </div>
 
             <div className="flex gap-2">
-              <button className="btn-secondary flex-1" onClick={() => setStep(2)}>Back</button>
+              <button className="btn-secondary flex-1" type="button" onClick={() => setStep(3)}>Back</button>
               <button className="btn-primary flex-1 justify-center" onClick={handleCreate} disabled={saving}>
                 {saving ? <Loader2 size={14} className="animate-spin" /> : '✨'}
                 {saving ? 'Creating…' : 'Create Table'}

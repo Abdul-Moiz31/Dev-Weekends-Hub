@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import BrandLogo from '@/components/brand/BrandLogo';
 
 interface AuthShellProps {
   title: string;
@@ -15,7 +16,7 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
         <div className="auth-brand__glow" />
         <div className="auth-brand__grid" />
         <div className="auth-brand__content">
-          <div className="auth-brand__mark">DW</div>
+          <BrandLogo size={56} className="auth-brand__mark" priority />
           <p className="auth-brand__name">Dev Weekends</p>
           <p className="auth-brand__tagline">Operations hub for sessions, links, and community data.</p>
         </div>
@@ -24,7 +25,7 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
       <div className="auth-main">
         <div className="auth-main__inner">
           <div className="auth-main__header md:hidden">
-            <div className="auth-brand__mark auth-brand__mark--sm">DW</div>
+            <BrandLogo size={36} className="auth-brand__mark auth-brand__mark--sm" />
             <span className="auth-main__header-text">Dev Weekends Hub</span>
           </div>
 

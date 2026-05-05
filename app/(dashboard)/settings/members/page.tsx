@@ -113,7 +113,7 @@ export default function MembersPage() {
         <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--accent)' }}>Workspace</p>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Team members</h1>
         <p className="text-sm sm:text-[0.9375rem] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          Invite editors or viewers by email. They receive login instructions and a temporary password (configure Resend for automated email).
+          Invite editors or viewers by email. They receive login instructions and a temporary password (configure SMTP for automated email).
         </p>
       </header>
 
@@ -125,7 +125,7 @@ export default function MembersPage() {
           <div>
             <h2 className="font-semibold text-lg tracking-tight" style={{ color: 'var(--text-primary)' }}>Invite by email</h2>
             <p className="text-sm mt-1 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              Creates their account immediately. Requires <code className="text-xs px-1 py-0.5 rounded" style={{ background: 'var(--bg-hover)' }}>SUPABASE_SERVICE_ROLE_KEY</code> on the server. Optional: <code className="text-xs px-1 py-0.5 rounded" style={{ background: 'var(--bg-hover)' }}>RESEND_API_KEY</code> to send the password by email.
+              Creates their account immediately. Requires <code className="text-xs px-1 py-0.5 rounded" style={{ background: 'var(--bg-hover)' }}>SUPABASE_SERVICE_ROLE_KEY</code> on the server. Optional: <code className="text-xs px-1 py-0.5 rounded" style={{ background: 'var(--bg-hover)' }}>SMTP_HOST</code>, <code className="text-xs px-1 py-0.5 rounded" style={{ background: 'var(--bg-hover)' }}>SMTP_PORT</code>, <code className="text-xs px-1 py-0.5 rounded" style={{ background: 'var(--bg-hover)' }}>SMTP_USER</code>, <code className="text-xs px-1 py-0.5 rounded" style={{ background: 'var(--bg-hover)' }}>SMTP_PASS</code> to send the password by email.
             </p>
           </div>
         </div>

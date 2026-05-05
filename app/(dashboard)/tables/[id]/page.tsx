@@ -7,10 +7,10 @@ import { logActivity } from '@/lib/activity';
 import Cell from '@/components/tables/CellRenderer';
 import { toast } from 'sonner';
 import {
-  Plus, Download, Search, Trash2, Copy, Loader2, Columns3, Pencil,
+  Plus, Download, Search, Trash2, Copy, Loader2, Columns3, Pencil, Users, Mail,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import type { DynamicTable, TableColumn, TableRow } from '@/types';
+import type { DynamicTable, TableColumn, TableRow, TableMentor, Profile } from '@/types';
 import { FIELD_TYPE_ICONS, FIELD_TYPE_LABELS } from '@/components/tables/fieldTypeIcons';
 
 interface EditingCell {
@@ -37,6 +37,13 @@ export default function TableViewPage() {
   const [editingHeaderId, setEditingHeaderId] = useState<string | null>(null);
   const [headerDraft, setHeaderDraft] = useState('');
   const [savingHeader, setSavingHeader] = useState(false);
+  const [mentors, setMentors] = useState<TableMentor[]>([]);
+  const [workspaceProfiles, setWorkspaceProfiles] = useState<Pick<Profile, 'id' | 'email' | 'full_name'>[]>([]);
+  const [mentorPanelOpen, setMentorPanelOpen] = useState(false);
+  const [mentorSlotEdit, setMentorSlotEdit] = useState<1 | 2 | 3>(2);
+  const [mentorPickEdit, setMentorPickEdit] = useState<[string, string, string]>(['', '', '']);
+  const [savingMentors, setSavingMentors] = useState(false);
+  const [reminding, setReminding] = useState(false);
 
   const myUserIdRef = useRef<string | null>(null);
   const headerInputRef = useRef<HTMLInputElement>(null);
@@ -66,14 +73,22 @@ export default function TableViewPage() {
   }, []);
 
   const fetchData = useCallback(async () => {
-    const [{ data: t }, { data: cols }, { data: rws }] = await Promise.all([
+    const [tRes, colsRes, rwsRes, mentorsRes, profilesRes] = await Promise.all([
       supabase.from('dynamic_tables').select('*').eq('id', id).single(),
       supabase.from('table_columns').select('*').eq('table_id', id).order('position'),
       supabase.from('table_rows').select('*').eq('table_id', id).order('position').order('created_at'),
+      supabase.from('table_mentors').select('*, profiles(full_name, email)').eq('table_id', id).order('slot'),
+      supabase.from('profiles').select('id, email, full_name').order('full_name'),
     ]);
-    setTable(t as DynamicTable);
-    setColumns((cols || []) as TableColumn[]);
-    setRows((rws || []) as TableRow[]);
+    setTable(tRes.data as DynamicTable);
+    setColumns((colsRes.data || []) as TableColumn[]);
+    setRows((rwsRes.data || []) as TableRow[]);
+    if (!mentorsRes.error && mentorsRes.data) {
+      setMentors(mentorsRes.data as TableMentor[]);
+    } else {
+      setMentors([]);
+    }
+    setWorkspaceProfiles((profilesRes.data || []) as Pick<Profile, 'id' | 'email' | 'full_name'>[]);
     setLoading(false);
   }, [id, supabase]);
 
@@ -287,6 +302,75 @@ export default function TableViewPage() {
     });
   };
 
+  const profileShortLabel = (p: Pick<Profile, 'full_name' | 'email'>) =>
+    (p.full_name && p.full_name.trim()) || p.email;
+
+  const openMentorPanel = () => {
+    const slots: [string, string, string] = ['', '', ''];
+    mentors.forEach(m => {
+      if (m.slot >= 1 && m.slot <= 3) slots[m.slot - 1] = m.profile_id;
+    });
+    setMentorPickEdit(slots);
+    const n = mentors.length;
+    setMentorSlotEdit((n === 0 ? 2 : Math.min(3, Math.max(n, 1))) as 1 | 2 | 3);
+    setMentorPanelOpen(true);
+  };
+
+  const setMentorEditAt = (index: 0 | 1 | 2, value: string) => {
+    setMentorPickEdit(prev => {
+      const next: [string, string, string] = [...prev];
+      next[index] = value;
+      return next;
+    });
+  };
+
+  const saveMentorsEdit = async () => {
+    if (!isAdmin) return;
+    const picks = mentorPickEdit.slice(0, mentorSlotEdit).filter((pid): pid is string => Boolean(pid));
+    if (new Set(picks).size !== picks.length) {
+      toast.error('Each mentor slot must be a different person');
+      return;
+    }
+    setSavingMentors(true);
+    const { error: delErr } = await supabase.from('table_mentors').delete().eq('table_id', id);
+    if (delErr) {
+      toast.error('Could not update mentors');
+      setSavingMentors(false);
+      return;
+    }
+    if (picks.length > 0) {
+      const { error: insErr } = await supabase.from('table_mentors').insert(
+        picks.map((profile_id, i) => ({ table_id: id, profile_id, slot: i + 1 }))
+      );
+      if (insErr) {
+        toast.error(insErr.message || 'Could not save mentors');
+        setSavingMentors(false);
+        fetchData();
+        return;
+      }
+    }
+    toast.success('Mentors updated');
+    setMentorPanelOpen(false);
+    setSavingMentors(false);
+    await fetchData();
+  };
+
+  const sendMentorReminders = async () => {
+    setReminding(true);
+    try {
+      const res = await fetch(`/api/tables/${id}/remind-mentors`, { method: 'POST' });
+      const data = await res.json().catch(() => ({})) as { error?: string; hint?: string; message?: string };
+      if (!res.ok) {
+        toast.error(data.error || 'Reminder failed');
+        if (data.hint) toast.info(data.hint, { duration: 9000 });
+        return;
+      }
+      toast.success(data.message || 'Reminders sent');
+    } finally {
+      setReminding(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-full">
@@ -380,6 +464,111 @@ export default function TableViewPage() {
           )}
         </div>
       </div>
+
+      <section className="table-mentor-banner mb-6" aria-label="Table mentors">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex items-center gap-2">
+              <Users size={16} style={{ color: 'var(--accent)' }} strokeWidth={2} />
+              <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>
+                Responsible mentors
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {mentors.length === 0 ? (
+                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  No mentors assigned yet.
+                </span>
+              ) : (
+                mentors.map(m => (
+                  <span
+                    key={m.id}
+                    className="table-mentor-chip inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium"
+                    style={{
+                      background: 'var(--bg-hover)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-primary)',
+                    }}
+                  >
+                    <span
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-bold flex-shrink-0"
+                      style={{
+                        background: 'var(--accent-soft)',
+                        color: 'var(--accent)',
+                        border: '1px solid rgba(16, 185, 129, 0.35)',
+                      }}
+                    >
+                      {(m.profiles?.full_name || m.profiles?.email || '?')[0].toUpperCase()}
+                    </span>
+                    <span className="truncate max-w-[14rem]">
+                      {m.profiles ? profileShortLabel(m.profiles) : 'Unknown'}
+                    </span>
+                  </span>
+                ))
+              )}
+            </div>
+            <p className="text-[11px] leading-snug max-w-xl" style={{ color: 'var(--text-secondary)' }}>
+              Shown to signed-in viewers and editors with workspace access. Invite teammates under Settings → Members if someone is missing from the list.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+            {canEdit && mentors.length > 0 && (
+              <button
+                type="button"
+                className="btn-primary text-sm"
+                disabled={reminding}
+                onClick={() => void sendMentorReminders()}
+              >
+                {reminding ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                Send reminder
+              </button>
+            )}
+            {isAdmin && (
+              <button type="button" className="btn-secondary text-sm" onClick={() => (mentorPanelOpen ? setMentorPanelOpen(false) : openMentorPanel())}>
+                {mentorPanelOpen ? 'Close' : 'Manage mentors'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {mentorPanelOpen && isAdmin && (
+          <div className="mt-4 pt-4 border-t space-y-4" style={{ borderColor: 'var(--border)' }}>
+            <div>
+              <label className="label">How many mentors?</label>
+              <div className="segmented inline-flex w-full sm:w-auto">
+                {([1, 2, 3] as const).map(n => (
+                  <button key={n} type="button" className={mentorSlotEdit === n ? 'is-active' : ''} onClick={() => setMentorSlotEdit(n)}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {([0, 1, 2] as const).slice(0, mentorSlotEdit).map(slotIdx => (
+              <div key={slotIdx}>
+                <label className="label" htmlFor={`mentor-edit-${slotIdx}`}>Mentor {slotIdx + 1}</label>
+                <select
+                  id={`mentor-edit-${slotIdx}`}
+                  className="input max-w-md"
+                  value={mentorPickEdit[slotIdx]}
+                  onChange={e => setMentorEditAt(slotIdx, e.target.value)}
+                >
+                  <option value="">— Optional —</option>
+                  {workspaceProfiles.map(p => (
+                    <option key={p.id} value={p.id}>{profileShortLabel(p)}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+            <div className="flex gap-2 flex-wrap">
+              <button type="button" className="btn-primary text-sm" disabled={savingMentors} onClick={() => void saveMentorsEdit()}>
+                {savingMentors ? <Loader2 size={14} className="animate-spin" /> : null}
+                Save mentors
+              </button>
+              <button type="button" className="btn-secondary text-sm" onClick={() => setMentorPanelOpen(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
+      </section>
 
       {columns.length === 0 ? (
         <div className="table-shell flex-1 flex flex-col items-center justify-center text-center px-6 py-16 min-h-[280px]">

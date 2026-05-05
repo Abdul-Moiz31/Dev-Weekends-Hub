@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { cn, getInitials } from '@/lib/utils';
 import type { DynamicTable, Link as LinkType, TableRow } from '@/types';
+import BrandLogo from '@/components/brand/BrandLogo';
 
 interface TopbarProps {
   title: string;
@@ -126,7 +127,10 @@ export default function Topbar({ title, onOpenMobileNav, onNavigate }: TopbarPro
           </button>
         )}
         <h1 className="text-[14px] font-medium tracking-tight text-[var(--fg)]">
-          {title}
+          <span className="inline-flex items-center gap-2">
+            <BrandLogo size={52} className="hidden sm:block" />
+            {title}
+          </span>
         </h1>
       </div>
 

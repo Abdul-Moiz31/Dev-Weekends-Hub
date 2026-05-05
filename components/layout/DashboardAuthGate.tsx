@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import BrandLogo from '@/components/brand/BrandLogo';
 
 /**
  * Client-side guard: if the session disappears (cookie cleared, sign-out elsewhere),
@@ -29,7 +30,7 @@ export default function DashboardAuthGate({ children }: { children: React.ReactN
     return (
       <div className="dashboard-gate dashboard-gate--blocking" aria-busy="true" aria-label="Loading">
         <div className="dashboard-gate__card">
-          <div className="dashboard-gate__logo">DW</div>
+          <BrandLogo size={40} className="dashboard-gate__logo" />
           <p className="dashboard-gate__title">Dev Weekends Hub</p>
           <div className="dashboard-gate__bar" />
           <p className="dashboard-gate__hint">Checking your session…</p>

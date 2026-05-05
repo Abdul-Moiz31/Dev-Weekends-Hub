@@ -13,6 +13,11 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'Dev Weekends Hub',
   description: 'Internal operations dashboard for the Dev Weekends community',
+  icons: {
+    icon: '/logo2.png',
+    shortcut: '/logo2.png',
+    apple: '/logo1.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

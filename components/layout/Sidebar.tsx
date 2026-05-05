@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
 import type { DynamicTable } from '@/types';
+import BrandLogo from '@/components/brand/BrandLogo';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -73,12 +74,7 @@ export default function Sidebar({ collapsed, onCollapse, mobileOpen, onCloseMobi
     >
       {/* Header */}
       <div className="flex items-center gap-2 px-3 h-12 flex-shrink-0">
-        <div
-          className="w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-bold flex-shrink-0 text-white shadow-sm"
-          style={{ background: 'linear-gradient(145deg, var(--accent), #22d3ee)' }}
-        >
-          DW
-        </div>
+        <BrandLogo size={52} />
         {!collapsed && (
           <div className="overflow-hidden min-w-0 flex-1">
             <p className="text-[13px] font-semibold leading-tight truncate text-[var(--fg)]">

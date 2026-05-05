@@ -8,6 +8,16 @@ function generateTemporaryPassword() {
   return randomBytes(12).toString('base64url').slice(0, 20);
 }
 
+function deriveFirstNameFromEmail(email: string) {
+  const local = email.split('@')[0] || '';
+  const withoutAlias = local.split('+')[0] || local;
+  const firstChunk = withoutAlias.split(/[._-]+/)[0] || withoutAlias;
+  const lettersOnly = firstChunk.replace(/[^a-zA-Z]/g, '');
+  const base = (lettersOnly || firstChunk || 'User').trim();
+  if (!base) return 'User';
+  return base[0].toUpperCase() + base.slice(1).toLowerCase();
+}
+
 export async function POST(request: Request) {
   let body: { email?: string; role?: string };
   try {
@@ -56,11 +66,15 @@ export async function POST(request: Request) {
   }
 
   const temporaryPassword = generateTemporaryPassword();
+  const derivedFirstName = deriveFirstNameFromEmail(email);
 
   const { data: created, error: createError } = await admin.auth.admin.createUser({
     email,
     password: temporaryPassword,
     email_confirm: true,
+    user_metadata: {
+      full_name: derivedFirstName,
+    },
   });
 
   if (createError) {
@@ -98,8 +112,8 @@ export async function POST(request: Request) {
       : {
           temporaryPassword,
           emailWarning:
-            emailResult.reason === 'missing_api_key'
-              ? 'RESEND_API_KEY is not set — copy the temporary password and share it securely with the invitee.'
+            emailResult.reason === 'missing_smtp_config'
+              ? 'SMTP is not configured — set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS (and optionally INVITE_EMAIL_FROM).'
               : `Email could not be sent (${emailResult.reason}). Share the temporary password securely.`,
         }),
   });

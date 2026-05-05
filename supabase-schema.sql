@@ -48,6 +48,17 @@ CREATE TABLE table_rows (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Responsible mentors for a sheet (1–3 workspace members per table)
+CREATE TABLE table_mentors (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  table_id UUID NOT NULL REFERENCES dynamic_tables(id) ON DELETE CASCADE,
+  profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  slot SMALLINT NOT NULL CHECK (slot >= 1 AND slot <= 3),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(table_id, slot),
+  UNIQUE(table_id, profile_id)
+);
+
 -- Links vault
 CREATE TABLE links (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -121,6 +132,12 @@ CREATE POLICY "rows_delete" ON table_rows FOR DELETE USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'editor'))
 );
 
+ALTER TABLE table_mentors ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "table_mentors_read" ON table_mentors FOR SELECT USING (true);
+CREATE POLICY "table_mentors_write" ON table_mentors FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+);
+
 ALTER TABLE links ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "links_read" ON links FOR SELECT USING (true);
 CREATE POLICY "links_insert" ON links FOR INSERT WITH CHECK (
@@ -144,6 +161,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE table_rows;
 ALTER PUBLICATION supabase_realtime ADD TABLE links;
 ALTER PUBLICATION supabase_realtime ADD TABLE dynamic_tables;
 ALTER PUBLICATION supabase_realtime ADD TABLE activity_log;
+ALTER PUBLICATION supabase_realtime ADD TABLE table_mentors;
 
 -- ============================================================
 -- Auto-create profile on signup trigger

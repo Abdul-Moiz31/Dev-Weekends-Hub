@@ -204,6 +204,18 @@
     background: var(--bg-hover);
   }
 
+  .table-mentor-banner {
+    border-radius: 1rem;
+    border: 1px solid var(--border);
+    padding: 1rem 1.25rem;
+    background: color-mix(in srgb, var(--bg-card) 90%, var(--accent-soft));
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+
+  .dark .table-mentor-banner {
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  }
+
   .table-shell {
     @apply overflow-auto rounded-2xl border shadow-sm;
     border-color: var(--border);
@@ -335,12 +347,12 @@
   }
 
   .auth-brand__mark {
-    @apply mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl text-lg font-bold;
-    background: rgba(255, 255, 255, 0.16);
+    @apply mb-4 inline-flex;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   }
 
   .auth-brand__mark--sm {
-    @apply mb-0 h-9 w-9 text-sm;
+    @apply mb-0 shadow-none;
   }
 
   .auth-brand__name {
@@ -418,8 +430,7 @@
   }
 
   .dashboard-gate__logo {
-    @apply mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white;
-    background: var(--accent);
+    @apply mx-auto mb-3;
   }
 
   .dashboard-gate__title {
