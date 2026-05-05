@@ -13,7 +13,7 @@ const ROLE_COLORS: Record<UserRole, string> = {
   viewer: '#6b7280',
 };
 
-type InviteRole = 'viewer' | 'editor';
+type InviteRole = 'viewer' | 'editor' | 'admin';
 
 export default function MembersPage() {
   const supabase = createClient();
@@ -113,7 +113,7 @@ export default function MembersPage() {
         <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--accent)' }}>Workspace</p>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Team members</h1>
         <p className="text-sm sm:text-[0.9375rem] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          Invite editors or viewers by email. They receive login instructions and a temporary password (configure SMTP for automated email).
+          Invite admins, editors, or viewers by email. They receive login instructions and a temporary password (configure SMTP for automated email).
         </p>
       </header>
 
@@ -154,6 +154,7 @@ export default function MembersPage() {
               >
                 <option value="viewer">Viewer</option>
                 <option value="editor">Editor</option>
+                <option value="admin">Admin</option>
               </select>
             </div>
             <div className="flex items-end">

@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS public.table_mentors (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   table_id UUID NOT NULL REFERENCES public.dynamic_tables(id) ON DELETE CASCADE,
   profile_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  slot SMALLINT NOT NULL CHECK (slot >= 1 AND slot <= 3),
+  slot INTEGER NOT NULL CHECK (slot >= 1),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(table_id, slot),
   UNIQUE(table_id, profile_id)

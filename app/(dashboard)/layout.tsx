@@ -13,6 +13,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/tables': 'Data Tables',
   '/settings': 'Settings',
   '/settings/members': 'Team Members',
+  '/settings/templates': 'Templates',
 };
 
 function getTitle(pathname: string) {

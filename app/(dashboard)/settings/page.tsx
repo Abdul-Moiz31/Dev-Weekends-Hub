@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useTheme } from '@/lib/theme-context';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Moon, Sun, Shield, Users, KeyRound } from 'lucide-react';
+import { Loader2, Moon, Sun, Shield, Users, KeyRound, Mail } from 'lucide-react';
 import { getInitials, formatDate } from '@/lib/utils';
 import type { Theme } from '@/lib/theme-context';
 
@@ -20,6 +20,7 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
+  const isAdmin = profile?.role === 'admin';
 
   useEffect(() => {
     if (profile) setName(profile.full_name || '');
@@ -78,8 +79,6 @@ export default function SettingsPage() {
       </div>
     );
   }
-
-  const isAdmin = profile.role === 'admin';
 
   return (
     <div className="max-w-3xl mx-auto space-y-10 sm:space-y-12 pb-4">
@@ -237,20 +236,38 @@ export default function SettingsPage() {
       {isAdmin && (
         <section>
           <p className="settings-section-title">Workspace</p>
-          <div className="surface-card p-6 sm:p-7 flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-6">
-            <div className="p-2.5 rounded-xl flex-shrink-0 self-start" style={{ background: 'var(--accent-soft)' }}>
-              <Users size={22} style={{ color: 'var(--accent)' }} />
+          <div className="surface-card p-6 sm:p-7 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-6">
+              <div className="p-2.5 rounded-xl flex-shrink-0 self-start" style={{ background: 'var(--accent-soft)' }}>
+                <Users size={22} style={{ color: 'var(--accent)' }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium" style={{ color: 'var(--text-primary)' }}>Team members</p>
+                <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+                  Invite teammates and manage roles (admin, editor, viewer).
+                </p>
+              </div>
+              <Link href="/settings/members" className="btn-primary whitespace-nowrap self-start sm:self-center">
+                <Shield size={15} />
+                Manage members
+              </Link>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium" style={{ color: 'var(--text-primary)' }}>Team members</p>
-              <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                Invite teammates and manage roles (admin, editor, viewer).
-              </p>
+
+            <div className="flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-6 pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
+              <div className="p-2.5 rounded-xl flex-shrink-0 self-start" style={{ background: 'var(--accent-soft)' }}>
+                <Mail size={22} style={{ color: 'var(--accent)' }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium" style={{ color: 'var(--text-primary)' }}>Templates</p>
+                <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+                  Manage plain-English invite and mentor templates in a separate admin tab.
+                </p>
+              </div>
+              <Link href="/settings/templates" className="btn-primary whitespace-nowrap self-start sm:self-center">
+                <Mail size={15} />
+                Open templates
+              </Link>
             </div>
-            <Link href="/settings/members" className="btn-primary whitespace-nowrap self-start sm:self-center">
-              <Shield size={15} />
-              Manage members
-            </Link>
           </div>
         </section>
       )}

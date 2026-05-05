@@ -49,7 +49,7 @@ export default function TablesPage() {
     icon: string,
     description: string,
     columns: { name: string; field_type: string; position: number; is_required: boolean; options: unknown; localId?: string }[],
-    mentors: { slotCount: 1 | 2 | 3; profileIds: string[] }
+    mentors: { slotCount: number; profileIds: string[] }
   ) => {
     const { data: { user } } = await supabase.auth.getUser();
     const { data: newTable, error } = await supabase

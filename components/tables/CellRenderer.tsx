@@ -4,6 +4,18 @@ import { ExternalLink } from 'lucide-react';
 import type { TableColumn } from '@/types';
 import { formatDate, formatDateTime, formatTimeDisplay, truncateUrl } from '@/lib/utils';
 
+function urlDisplayName(raw: string) {
+  try {
+    const u = new URL(raw);
+    const parts = u.pathname.split('/').filter(Boolean);
+    if (parts.length === 0) return u.hostname.replace(/^www\./, '');
+    const last = parts[parts.length - 1].replace(/[-_]+/g, ' ');
+    return last.charAt(0).toUpperCase() + last.slice(1);
+  } catch {
+    return truncateUrl(raw, 30);
+  }
+}
+
 function StatusBadge({ value, options }: { value: string; options: { label: string; color: string }[] }) {
   const opt = options.find(o => o.label === value);
   const color = opt?.color || '#6b7280';
@@ -56,7 +68,7 @@ export default function Cell({ value, column, editing, onEdit, onSave, onBlur, c
           onChange={e => { onSave(e.target.checked); onBlur(); }} autoFocus />
       );
     }
-    if (column.field_type === 'status' || column.field_type === 'select') {
+    if (column.field_type === 'status' || column.field_type === 'select' || column.field_type === 'mentor') {
       return (
         <select ref={inputRef as React.RefObject<HTMLSelectElement>} value={draft as string || ''} style={inputStyle}
           onChange={e => setDraft(e.target.value)} onBlur={handleBlur}>
@@ -99,7 +111,7 @@ export default function Cell({ value, column, editing, onEdit, onSave, onBlur, c
       </div>
     );
   }
-  if (column.field_type === 'status' || column.field_type === 'select') {
+  if (column.field_type === 'status' || column.field_type === 'select' || column.field_type === 'mentor') {
     return (
       <div onClick={canEdit ? onEdit : undefined} style={{ cursor: canEdit ? 'pointer' : 'default' }}>
         {value ? (
@@ -116,7 +128,7 @@ export default function Cell({ value, column, editing, onEdit, onSave, onBlur, c
         <a href={value as string} target="_blank" rel="noopener noreferrer"
           className="text-[var(--accent)] flex items-center gap-1 hover:underline text-xs"
           onClick={e => e.stopPropagation()}>
-          {truncateUrl(value as string, 30)} <ExternalLink size={11} />
+          {urlDisplayName(value as string)} <ExternalLink size={11} />
         </a>
       </div>
     );

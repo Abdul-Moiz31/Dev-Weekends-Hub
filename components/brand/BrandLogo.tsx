@@ -9,7 +9,7 @@ interface BrandLogoProps {
 }
 
 export default function BrandLogo({
-  size = 68,
+  size = 48,
   className,
   alt = 'Dev Weekends',
   priority = false,

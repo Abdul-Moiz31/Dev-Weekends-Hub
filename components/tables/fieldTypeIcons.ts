@@ -15,6 +15,7 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   select: 'Select',
   email: 'Email',
   phone: 'Phone',
+  mentor: 'Mentor',
 };
 
 export const FIELD_TYPE_ICONS: Record<FieldType, string> = {
@@ -31,4 +32,5 @@ export const FIELD_TYPE_ICONS: Record<FieldType, string> = {
   select: '▼',
   email: '@',
   phone: '📞',
+  mentor: '👥',
 };

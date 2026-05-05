@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  LayoutDashboard, Link2, Table2, Settings, Users, ChevronLeft,
+  LayoutDashboard, Link2, Table2, Settings, Users, Mail, ChevronLeft,
   ChevronRight, LogOut, ChevronDown, Plus, CalendarDays,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -47,6 +47,7 @@ export default function Sidebar({ collapsed, onCollapse, mobileOpen, onCloseMobi
   const settingsItems = [
     { href: '/settings', icon: Settings, label: 'Settings' },
     ...(profile?.role === 'admin' ? [{ href: '/settings/members', icon: Users, label: 'Members' }] : []),
+    ...(profile?.role === 'admin' ? [{ href: '/settings/templates', icon: Mail, label: 'Templates' }] : []),
   ];
 
   const afterNav = () => onCloseMobile?.();

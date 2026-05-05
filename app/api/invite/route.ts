@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendInviteCredentialsEmail } from '@/lib/invite-email';
+import type { EmailTemplateKey } from '@/types';
 
 function generateTemporaryPassword() {
   return randomBytes(12).toString('base64url').slice(0, 20);
@@ -27,13 +28,20 @@ export async function POST(request: Request) {
   }
 
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
-  const role = body.role === 'editor' ? 'editor' : body.role === 'viewer' ? 'viewer' : null;
+  const role =
+    body.role === 'admin'
+      ? 'admin'
+      : body.role === 'editor'
+        ? 'editor'
+        : body.role === 'viewer'
+          ? 'viewer'
+          : null;
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: 'Valid email is required' }, { status: 400 });
   }
   if (!role) {
-    return NextResponse.json({ error: 'Role must be viewer or editor' }, { status: 400 });
+    return NextResponse.json({ error: 'Role must be viewer, editor, or admin' }, { status: 400 });
   }
 
   const supabase = await createClient();
@@ -97,10 +105,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Could not assign role; invite rolled back.' }, { status: 500 });
   }
 
+  const templateKey = `invite_${role}` as EmailTemplateKey;
+  const { data: inviteTemplate } = await admin
+    .from('email_templates')
+    .select('subject, html')
+    .eq('key', templateKey)
+    .maybeSingle();
+
   const emailResult = await sendInviteCredentialsEmail({
     to: email,
     temporaryPassword,
     role,
+    inviteeName: derivedFirstName,
+    subjectTemplate: inviteTemplate?.subject || undefined,
+    htmlTemplate: inviteTemplate?.html || undefined,
   });
 
   return NextResponse.json({

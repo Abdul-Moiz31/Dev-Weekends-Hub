@@ -30,7 +30,7 @@ CREATE TABLE table_columns (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   table_id UUID REFERENCES dynamic_tables(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
-  field_type TEXT NOT NULL CHECK (field_type IN ('text', 'number', 'date', 'time', 'datetime', 'status', 'url', 'checkbox', 'person', 'longtext', 'select', 'email', 'phone')),
+  field_type TEXT NOT NULL CHECK (field_type IN ('text', 'number', 'date', 'time', 'datetime', 'status', 'url', 'checkbox', 'person', 'longtext', 'select', 'email', 'phone', 'mentor')),
   position INTEGER NOT NULL DEFAULT 0,
   is_required BOOLEAN DEFAULT FALSE,
   options JSONB,
@@ -48,15 +48,35 @@ CREATE TABLE table_rows (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Responsible mentors for a sheet (1–3 workspace members per table)
+-- Responsible mentors for a sheet (any number of workspace members per table)
 CREATE TABLE table_mentors (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   table_id UUID NOT NULL REFERENCES dynamic_tables(id) ON DELETE CASCADE,
   profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  slot SMALLINT NOT NULL CHECK (slot >= 1 AND slot <= 3),
+  slot INTEGER NOT NULL CHECK (slot >= 1),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(table_id, slot),
   UNIQUE(table_id, profile_id)
+);
+
+-- Editable email templates (admin-managed)
+CREATE TABLE email_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  key TEXT NOT NULL UNIQUE CHECK (key IN (
+    'invite_admin',
+    'invite_editor',
+    'invite_viewer',
+    'mentor_reminder_default',
+    'mentor_added_default'
+  )),
+  category TEXT NOT NULL CHECK (category IN ('invite', 'mentor')),
+  name TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  html TEXT NOT NULL,
+  description TEXT,
+  created_by UUID REFERENCES profiles(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Links vault
@@ -138,6 +158,14 @@ CREATE POLICY "table_mentors_write" ON table_mentors FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );
 
+ALTER TABLE email_templates ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "email_templates_read_admin" ON email_templates FOR SELECT USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+);
+CREATE POLICY "email_templates_write_admin" ON email_templates FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+);
+
 ALTER TABLE links ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "links_read" ON links FOR SELECT USING (true);
 CREATE POLICY "links_insert" ON links FOR INSERT WITH CHECK (
@@ -203,3 +231,47 @@ CREATE OR REPLACE TRIGGER on_auth_user_created
 -- NOTE: Seed data inserts require a logged-in admin user.
 -- After setting up auth, run the seed-data.sql script separately,
 -- or use the app's UI to create the seed tables.
+
+INSERT INTO email_templates (key, category, name, subject, html, description)
+VALUES
+(
+  'invite_admin',
+  'invite',
+  'Invite - Admin',
+  'Admin invite to Dev Weekends Hub',
+  '<p>Hi {{recipient_name}}, you were added as <strong>admin</strong>.</p><p>Your temporary password: <code>{{temporary_password}}</code></p><p><a href="{{login_url}}">Open login</a></p>',
+  'Sent when a user is invited as admin.'
+),
+(
+  'invite_editor',
+  'invite',
+  'Invite - Editor',
+  'Editor invite to Dev Weekends Hub',
+  '<p>Hi {{recipient_name}}, you were added as <strong>editor</strong>.</p><p>Your temporary password: <code>{{temporary_password}}</code></p><p><a href="{{login_url}}">Open login</a></p>',
+  'Sent when a user is invited as editor.'
+),
+(
+  'invite_viewer',
+  'invite',
+  'Invite - Viewer',
+  'Viewer invite to Dev Weekends Hub',
+  '<p>Hi {{recipient_name}}, you were added as <strong>viewer</strong>.</p><p>Your temporary password: <code>{{temporary_password}}</code></p><p><a href="{{login_url}}">Open login</a></p>',
+  'Sent when a user is invited as viewer.'
+),
+(
+  'mentor_reminder_default',
+  'mentor',
+  'Mentor reminder',
+  'Mentor reminder: {{table_name}}',
+  '<p>Hi {{recipient_name}},</p><p><strong>{{triggered_by}}</strong> sent a reminder for <strong>{{table_name}}</strong>.</p><p><a href="{{table_url}}">Open table</a></p>',
+  'Reminder sent to mentors for a table.'
+),
+(
+  'mentor_added_default',
+  'mentor',
+  'Mentor assignment',
+  'You were added as mentor: {{table_name}}',
+  '<p>Hi {{recipient_name}},</p><p><strong>{{triggered_by}}</strong> added you as a mentor for <strong>{{table_name}}</strong>.</p><p><a href="{{table_url}}">Open table</a></p>',
+  'Sent when someone is assigned as mentor.'
+)
+ON CONFLICT (key) DO NOTHING;

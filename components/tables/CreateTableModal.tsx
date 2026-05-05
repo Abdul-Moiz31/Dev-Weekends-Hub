@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { X, Trash2, GripVertical, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Trash2, GripVertical, Loader2, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -24,6 +24,7 @@ const FIELD_TYPES: { type: FieldType; label: string; icon: string; desc: string 
   { type: 'select', label: 'Select', icon: '▼', desc: 'Dropdown' },
   { type: 'email', label: 'Email', icon: '@', desc: 'Email address' },
   { type: 'phone', label: 'Phone', icon: '📞', desc: 'Phone number' },
+  { type: 'mentor', label: 'Mentor', icon: '👥', desc: 'Mentor dropdown' },
 ];
 
 const EMOJI_OPTIONS = ['📋', '📊', '📈', '📉', '🗂', '📁', '📝', '✅', '🎯', '🚀', '💡', '🔥', '⭐', '🏆', '👥', '🎓', '💼', '🛠', '📅', '🔗', '🌐', '📢', '🎉', '🧩'];
@@ -126,8 +127,7 @@ export default function CreateTableModal({ onClose, onCreate }: CreateTableModal
   const [icon, setIcon] = useState('📋');
   const [description, setDescription] = useState('');
   const [columns, setColumns] = useState<ColDraft[]>([]);
-  const [mentorSlotCount, setMentorSlotCount] = useState<1 | 2 | 3>(2);
-  const [mentorPick, setMentorPick] = useState<[string, string, string]>(['', '', '']);
+  const [mentorPick, setMentorPick] = useState<string[]>(['', '']);
   const [profiles, setProfiles] = useState<Pick<Profile, 'id' | 'email' | 'full_name'>[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -180,13 +180,13 @@ export default function CreateTableModal({ onClose, onCreate }: CreateTableModal
 
   const handleCreate = async () => {
     if (!name.trim()) return;
-    const picks = mentorPick.slice(0, mentorSlotCount).filter((pid): pid is string => Boolean(pid));
+    const picks = mentorPick.filter((pid): pid is string => Boolean(pid));
     if (new Set(picks).size !== picks.length) {
       toast.error('Choose a different mentor for each slot');
       return;
     }
     const mentors: MentorSelectionPayload = {
-      slotCount: mentorSlotCount,
+      slotCount: picks.length,
       profileIds: picks,
     };
     setSaving(true);
@@ -200,11 +200,22 @@ export default function CreateTableModal({ onClose, onCreate }: CreateTableModal
     setSaving(false);
   };
 
-  const setMentorAt = (index: 0 | 1 | 2, value: string) => {
+  const setMentorAt = (index: number, value: string) => {
     setMentorPick(prev => {
-      const next: [string, string, string] = [...prev];
+      const next = [...prev];
       next[index] = value;
       return next;
+    });
+  };
+
+  const addMentorField = () => {
+    setMentorPick(prev => [...prev, '']);
+  };
+
+  const removeMentorField = (index: number) => {
+    setMentorPick(prev => {
+      if (prev.length <= 1) return [''];
+      return prev.filter((_, i) => i !== index);
     });
   };
 
@@ -275,39 +286,37 @@ export default function CreateTableModal({ onClose, onCreate }: CreateTableModal
         {step === 2 && (
           <div className="space-y-4">
             <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              Pick up to three workspace members responsible for this sheet. They must already have a Hub account (invite them under Settings → Members first).
+              Pick as many workspace members as needed for this sheet. They must already have a Hub account (invite them under Settings → Members first).
             </p>
-            <div>
-              <label className="label">How many mentors?</label>
-              <div className="segmented inline-flex w-full sm:w-auto">
-                {([1, 2, 3] as const).map(n => (
-                  <button
-                    key={n}
-                    type="button"
-                    className={mentorSlotCount === n ? 'is-active' : ''}
-                    onClick={() => setMentorSlotCount(n)}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {([0, 1, 2] as const).slice(0, mentorSlotCount).map(slotIdx => (
+            {mentorPick.map((pid, slotIdx) => (
               <div key={slotIdx}>
                 <label className="label" htmlFor={`mentor-${slotIdx}`}>Mentor {slotIdx + 1}</label>
-                <select
-                  id={`mentor-${slotIdx}`}
-                  className="input"
-                  value={mentorPick[slotIdx]}
-                  onChange={e => setMentorAt(slotIdx, e.target.value)}
-                >
-                  <option value="">— Optional —</option>
-                  {profiles.map(p => (
-                    <option key={p.id} value={p.id}>{profileOptionLabel(p)}</option>
-                  ))}
-                </select>
+                <div className="flex gap-2">
+                  <select
+                    id={`mentor-${slotIdx}`}
+                    className="input"
+                    value={pid}
+                    onChange={e => setMentorAt(slotIdx, e.target.value)}
+                  >
+                    <option value="">— Optional —</option>
+                    {profiles.map(p => (
+                      <option key={p.id} value={p.id}>{profileOptionLabel(p)}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => removeMentorField(slotIdx)}
+                    aria-label={`Remove mentor slot ${slotIdx + 1}`}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
             ))}
+            <button type="button" className="btn-secondary text-sm" onClick={addMentorField}>
+              <Plus size={14} /> Add mentor
+            </button>
             <div className="flex gap-2 pt-1">
               <button className="btn-secondary flex-1" type="button" onClick={() => setStep(1)}>Back</button>
               <button className="btn-primary flex-1 justify-center" type="button" onClick={() => setStep(3)}>
@@ -377,10 +386,10 @@ export default function CreateTableModal({ onClose, onCreate }: CreateTableModal
                   Responsible mentors
                 </p>
                 <ul className="text-sm space-y-0.5" style={{ color: 'var(--text-primary)' }}>
-                  {mentorPick.slice(0, mentorSlotCount).every(id => !id) ? (
+                  {mentorPick.every(id => !id) ? (
                     <li style={{ color: 'var(--text-secondary)' }}>None chosen — you can assign mentors on this table page later.</li>
                   ) : (
-                    mentorPick.slice(0, mentorSlotCount).map((pid, i) => {
+                    mentorPick.map((pid, i) => {
                       const p = profiles.find(x => x.id === pid);
                       return (
                         <li key={i}>{pid && p ? profileOptionLabel(p) : `Slot ${i + 1}: —`}</li>

@@ -3,10 +3,13 @@ import { createClient } from '@/lib/supabase/server';
 import { sendTableMentorReminder, tableAbsoluteUrl } from '@/lib/email/mentor-reminder';
 
 export async function POST(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   const { id: tableId } = await context.params;
+  const rawBody = await request.json().catch(() => ({})) as { templateKey?: string };
+  const templateKey =
+    rawBody.templateKey === 'mentor_added_default' ? 'mentor_added_default' : 'mentor_reminder_default';
 
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -24,8 +27,8 @@ export async function POST(
     return NextResponse.json({ error: 'Profile not found' }, { status: 403 });
   }
 
-  if (profile.role !== 'admin' && profile.role !== 'editor') {
-    return NextResponse.json({ error: 'Only editors and admins can send reminders' }, { status: 403 });
+  if (profile.role !== 'admin') {
+    return NextResponse.json({ error: 'Only admins can send reminder templates' }, { status: 403 });
   }
 
   const { data: table, error: tableError } = await supabase
@@ -80,6 +83,11 @@ export async function POST(
   const triggeredByName =
     (profile.full_name && profile.full_name.trim()) || profile.email || 'A teammate';
   const tableUrl = tableAbsoluteUrl(tableId);
+  const { data: reminderTemplate } = await supabase
+    .from('email_templates')
+    .select('subject, html')
+    .eq('key', templateKey)
+    .maybeSingle();
 
   let sent = 0;
   const failures: string[] = [];
@@ -91,6 +99,9 @@ export async function POST(
       tableName: table.name,
       triggeredByName,
       tableUrl,
+      templateKey,
+      subjectTemplate: reminderTemplate?.subject || undefined,
+      htmlTemplate: reminderTemplate?.html || undefined,
     });
     if (r.ok) sent++;
     else failures.push(m.email);

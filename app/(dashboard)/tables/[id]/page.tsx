@@ -10,8 +10,9 @@ import {
   Plus, Download, Search, Trash2, Copy, Loader2, Columns3, Pencil, Users, Mail,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import type { DynamicTable, TableColumn, TableRow, TableMentor, Profile } from '@/types';
+import type { DynamicTable, TableColumn, TableRow, TableMentor, Profile, EmailTemplate, FieldType } from '@/types';
 import { FIELD_TYPE_ICONS, FIELD_TYPE_LABELS } from '@/components/tables/fieldTypeIcons';
+import { DEFAULT_STATUS_OPTIONS } from '@/types';
 
 interface EditingCell {
   rowId: string;
@@ -40,10 +41,16 @@ export default function TableViewPage() {
   const [mentors, setMentors] = useState<TableMentor[]>([]);
   const [workspaceProfiles, setWorkspaceProfiles] = useState<Pick<Profile, 'id' | 'email' | 'full_name'>[]>([]);
   const [mentorPanelOpen, setMentorPanelOpen] = useState(false);
-  const [mentorSlotEdit, setMentorSlotEdit] = useState<1 | 2 | 3>(2);
-  const [mentorPickEdit, setMentorPickEdit] = useState<[string, string, string]>(['', '', '']);
+  const [mentorPickEdit, setMentorPickEdit] = useState<string[]>(['', '']);
   const [savingMentors, setSavingMentors] = useState(false);
   const [reminding, setReminding] = useState(false);
+  const [reminderTemplates, setReminderTemplates] = useState<EmailTemplate[]>([]);
+  const [reminderTemplateKey, setReminderTemplateKey] = useState<'mentor_reminder_default' | 'mentor_added_default'>('mentor_reminder_default');
+  const [reminderModalOpen, setReminderModalOpen] = useState(false);
+  const [addColModalOpen, setAddColModalOpen] = useState(false);
+  const [newColName, setNewColName] = useState('');
+  const [newColType, setNewColType] = useState<FieldType>('text');
+  const [addingColumn, setAddingColumn] = useState(false);
 
   const myUserIdRef = useRef<string | null>(null);
   const headerInputRef = useRef<HTMLInputElement>(null);
@@ -89,8 +96,18 @@ export default function TableViewPage() {
       setMentors([]);
     }
     setWorkspaceProfiles((profilesRes.data || []) as Pick<Profile, 'id' | 'email' | 'full_name'>[]);
+    if (isAdmin) {
+      const { data: templateRows } = await supabase
+        .from('email_templates')
+        .select('*')
+        .in('key', ['mentor_reminder_default', 'mentor_added_default'])
+        .order('key');
+      setReminderTemplates((templateRows || []) as EmailTemplate[]);
+    } else {
+      setReminderTemplates([]);
+    }
     setLoading(false);
-  }, [id, supabase]);
+  }, [id, supabase, isAdmin]);
 
   useEffect(() => {
     (async () => {
@@ -149,6 +166,13 @@ export default function TableViewPage() {
   }, [editingHeaderId, hiddenColIds]);
 
   const visibleColumns = columns.filter(c => !hiddenColIds.has(c.id));
+  const mentorOptions = mentors.map(m => {
+    const label = (m.profiles?.full_name && m.profiles.full_name.trim()) || m.profiles?.email || 'Mentor';
+    return { label, color: '#14b8a6' };
+  });
+  const renderedColumns = visibleColumns.map(c =>
+    c.field_type === 'mentor' ? { ...c, options: mentorOptions } : c
+  );
 
   const filteredRows = rows.filter(row => {
     if (!search.trim()) return true;
@@ -265,6 +289,45 @@ export default function TableViewPage() {
     setSavingHeader(false);
   };
 
+  const addColumnToTable = async () => {
+    if (!isAdmin || addingColumn) return;
+    const name = newColName.trim();
+    if (!name) {
+      toast.error('Column name is required');
+      return;
+    }
+    setAddingColumn(true);
+    const options =
+      newColType === 'status'
+        ? DEFAULT_STATUS_OPTIONS
+        : newColType === 'select'
+          ? []
+          : null;
+    const { data, error } = await supabase
+      .from('table_columns')
+      .insert({
+        table_id: id,
+        name,
+        field_type: newColType,
+        position: columns.length,
+        is_required: false,
+        options,
+      })
+      .select('*')
+      .single();
+    if (error) {
+      toast.error(error.message || 'Could not add column');
+      setAddingColumn(false);
+      return;
+    }
+    setColumns(prev => [...prev, data as TableColumn]);
+    setAddColModalOpen(false);
+    setNewColName('');
+    setNewColType('text');
+    setAddingColumn(false);
+    toast.success('Column added');
+  };
+
   const exportCSV = () => {
     const headers = visibleColumns.map(c => c.name).join(',');
     const csvRows = filteredRows.map(row =>
@@ -306,27 +369,35 @@ export default function TableViewPage() {
     (p.full_name && p.full_name.trim()) || p.email;
 
   const openMentorPanel = () => {
-    const slots: [string, string, string] = ['', '', ''];
-    mentors.forEach(m => {
-      if (m.slot >= 1 && m.slot <= 3) slots[m.slot - 1] = m.profile_id;
-    });
-    setMentorPickEdit(slots);
-    const n = mentors.length;
-    setMentorSlotEdit((n === 0 ? 2 : Math.min(3, Math.max(n, 1))) as 1 | 2 | 3);
+    const picks = [...mentors]
+      .sort((a, b) => a.slot - b.slot)
+      .map(m => m.profile_id);
+    setMentorPickEdit(picks.length > 0 ? picks : ['', '']);
     setMentorPanelOpen(true);
   };
 
-  const setMentorEditAt = (index: 0 | 1 | 2, value: string) => {
+  const setMentorEditAt = (index: number, value: string) => {
     setMentorPickEdit(prev => {
-      const next: [string, string, string] = [...prev];
+      const next = [...prev];
       next[index] = value;
       return next;
     });
   };
 
+  const addMentorEditField = () => {
+    setMentorPickEdit(prev => [...prev, '']);
+  };
+
+  const removeMentorEditField = (index: number) => {
+    setMentorPickEdit(prev => {
+      if (prev.length <= 1) return [''];
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
   const saveMentorsEdit = async () => {
     if (!isAdmin) return;
-    const picks = mentorPickEdit.slice(0, mentorSlotEdit).filter((pid): pid is string => Boolean(pid));
+    const picks = mentorPickEdit.filter((pid): pid is string => Boolean(pid));
     if (new Set(picks).size !== picks.length) {
       toast.error('Each mentor slot must be a different person');
       return;
@@ -358,7 +429,11 @@ export default function TableViewPage() {
   const sendMentorReminders = async () => {
     setReminding(true);
     try {
-      const res = await fetch(`/api/tables/${id}/remind-mentors`, { method: 'POST' });
+      const res = await fetch(`/api/tables/${id}/remind-mentors`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templateKey: reminderTemplateKey }),
+      });
       const data = await res.json().catch(() => ({})) as { error?: string; hint?: string; message?: string };
       if (!res.ok) {
         toast.error(data.error || 'Reminder failed');
@@ -366,6 +441,7 @@ export default function TableViewPage() {
         return;
       }
       toast.success(data.message || 'Reminders sent');
+      setReminderModalOpen(false);
     } finally {
       setReminding(false);
     }
@@ -462,6 +538,12 @@ export default function TableViewPage() {
               Add Row
             </button>
           )}
+          {isAdmin && (
+            <button type="button" className="btn-secondary text-sm" onClick={() => setAddColModalOpen(true)}>
+              <Plus size={13} />
+              Add Column
+            </button>
+          )}
         </div>
       </div>
 
@@ -512,12 +594,12 @@ export default function TableViewPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
-            {canEdit && mentors.length > 0 && (
+            {isAdmin && mentors.length > 0 && (
               <button
                 type="button"
                 className="btn-primary text-sm"
                 disabled={reminding}
-                onClick={() => void sendMentorReminders()}
+                onClick={() => setReminderModalOpen(true)}
               >
                 {reminding ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
                 Send reminder
@@ -533,32 +615,35 @@ export default function TableViewPage() {
 
         {mentorPanelOpen && isAdmin && (
           <div className="mt-4 pt-4 border-t space-y-4" style={{ borderColor: 'var(--border)' }}>
-            <div>
-              <label className="label">How many mentors?</label>
-              <div className="segmented inline-flex w-full sm:w-auto">
-                {([1, 2, 3] as const).map(n => (
-                  <button key={n} type="button" className={mentorSlotEdit === n ? 'is-active' : ''} onClick={() => setMentorSlotEdit(n)}>
-                    {n}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {([0, 1, 2] as const).slice(0, mentorSlotEdit).map(slotIdx => (
+            {mentorPickEdit.map((pid, slotIdx) => (
               <div key={slotIdx}>
                 <label className="label" htmlFor={`mentor-edit-${slotIdx}`}>Mentor {slotIdx + 1}</label>
-                <select
-                  id={`mentor-edit-${slotIdx}`}
-                  className="input max-w-md"
-                  value={mentorPickEdit[slotIdx]}
-                  onChange={e => setMentorEditAt(slotIdx, e.target.value)}
-                >
-                  <option value="">— Optional —</option>
-                  {workspaceProfiles.map(p => (
-                    <option key={p.id} value={p.id}>{profileShortLabel(p)}</option>
-                  ))}
-                </select>
+                <div className="flex gap-2 max-w-xl">
+                  <select
+                    id={`mentor-edit-${slotIdx}`}
+                    className="input max-w-md"
+                    value={pid}
+                    onChange={e => setMentorEditAt(slotIdx, e.target.value)}
+                  >
+                    <option value="">— Optional —</option>
+                    {workspaceProfiles.map(p => (
+                      <option key={p.id} value={p.id}>{profileShortLabel(p)}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => removeMentorEditField(slotIdx)}
+                    aria-label={`Remove mentor slot ${slotIdx + 1}`}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
             ))}
+            <button type="button" className="btn-secondary text-sm" onClick={addMentorEditField}>
+              <Plus size={14} /> Add mentor
+            </button>
             <div className="flex gap-2 flex-wrap">
               <button type="button" className="btn-primary text-sm" disabled={savingMentors} onClick={() => void saveMentorsEdit()}>
                 {savingMentors ? <Loader2 size={14} className="animate-spin" /> : null}
@@ -609,7 +694,7 @@ export default function TableViewPage() {
             <thead>
               <tr>
                 <th className="data-table__rownum">#</th>
-                {visibleColumns.map(col => (
+                {renderedColumns.map(col => (
                   <th key={col.id} className="data-table__col-heading">
                     <div className="col-heading-cell">
                       <div className="col-heading-top">
@@ -668,7 +753,7 @@ export default function TableViewPage() {
             <tbody>
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={visibleColumns.length + (canEdit ? 2 : 1)} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                  <td colSpan={renderedColumns.length + (canEdit ? 2 : 1)} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
                     {search ? 'No rows match your search.' : 'No rows yet. Click "Add Row" to get started.'}
                   </td>
                 </tr>
@@ -676,7 +761,7 @@ export default function TableViewPage() {
                 filteredRows.map((row, idx) => (
                   <tr key={row.id} className="group">
                     <td style={{ color: 'var(--text-secondary)', fontSize: '11px', textAlign: 'center', paddingLeft: '8px' }}>{idx + 1}</td>
-                    {visibleColumns.map(col => (
+                    {renderedColumns.map(col => (
                       <td key={col.id}>
                         <Cell
                           value={row.data[col.id]}
@@ -719,6 +804,90 @@ export default function TableViewPage() {
               <button type="button" className="btn-secondary flex-1" onClick={() => setDeleteRowId(null)}>Cancel</button>
               <button type="button" className="btn-primary flex-1 justify-center" style={{ background: '#ef4444' }}
                 onClick={() => deleteRow(deleteRowId)}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reminderModalOpen && isAdmin && (
+        <div className="modal-overlay">
+          <div className="modal max-w-lg">
+            <h3 className="font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Send mentor email</h3>
+            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+              Choose which admin template to send to all mentors on this table.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="label" htmlFor="reminder-template">Template</label>
+                <select
+                  id="reminder-template"
+                  className="input"
+                  value={reminderTemplateKey}
+                  onChange={e => setReminderTemplateKey(e.target.value as 'mentor_reminder_default' | 'mentor_added_default')}
+                >
+                  <option value="mentor_reminder_default">Mentor reminder</option>
+                  <option value="mentor_added_default">You are added as mentor</option>
+                </select>
+              </div>
+              {reminderTemplates.length > 0 && (
+                <div className="rounded-xl border p-3 text-xs leading-relaxed" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)', background: 'var(--bg-muted)' }}>
+                  {(reminderTemplates.find(t => t.key === reminderTemplateKey)?.description) || 'Template configured in Settings.'}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button type="button" className="btn-secondary flex-1" onClick={() => setReminderModalOpen(false)} disabled={reminding}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary flex-1 justify-center" onClick={() => void sendMentorReminders()} disabled={reminding}>
+                {reminding ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                {reminding ? 'Sending…' : 'Send email'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {addColModalOpen && isAdmin && (
+        <div className="modal-overlay">
+          <div className="modal max-w-lg">
+            <h3 className="font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Add column</h3>
+            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+              Add another column to this table after creation.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="label" htmlFor="new-col-name">Column name</label>
+                <input
+                  id="new-col-name"
+                  className="input"
+                  value={newColName}
+                  onChange={e => setNewColName(e.target.value)}
+                  placeholder="e.g. Notes"
+                />
+              </div>
+              <div>
+                <label className="label" htmlFor="new-col-type">Column type</label>
+                <select
+                  id="new-col-type"
+                  className="input"
+                  value={newColType}
+                  onChange={e => setNewColType(e.target.value as FieldType)}
+                >
+                  {(Object.keys(FIELD_TYPE_LABELS) as FieldType[]).map(ft => (
+                    <option key={ft} value={ft}>{FIELD_TYPE_LABELS[ft]}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button type="button" className="btn-secondary flex-1" onClick={() => setAddColModalOpen(false)} disabled={addingColumn}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary flex-1 justify-center" onClick={() => void addColumnToTable()} disabled={addingColumn}>
+                {addingColumn ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                {addingColumn ? 'Adding…' : 'Add column'}
+              </button>
             </div>
           </div>
         </div>

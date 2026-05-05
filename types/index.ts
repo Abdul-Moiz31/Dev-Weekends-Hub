@@ -1,5 +1,14 @@
 export type UserRole = 'admin' | 'editor' | 'viewer';
 
+export type EmailTemplateKey =
+  | 'invite_admin'
+  | 'invite_editor'
+  | 'invite_viewer'
+  | 'mentor_reminder_default'
+  | 'mentor_added_default';
+
+export type EmailTemplateCategory = 'invite' | 'mentor';
+
 export interface Profile {
   id: string;
   email: string;
@@ -23,7 +32,8 @@ export type FieldType =
   | 'longtext'
   | 'select'
   | 'email'
-  | 'phone';
+  | 'phone'
+  | 'mentor';
 
 export interface TableColumn {
   id: string;
@@ -48,7 +58,7 @@ export interface DynamicTable {
   row_count?: number;
 }
 
-/** Assigned mentors for a sheet (slots 1–3); profiles joined when querying */
+/** Assigned mentors for a sheet (ordered slots); profiles joined when querying */
 export interface TableMentor {
   id: string;
   table_id: string;
@@ -60,7 +70,7 @@ export interface TableMentor {
 
 /** Passed when creating a table */
 export interface MentorSelectionPayload {
-  slotCount: 1 | 2 | 3;
+  slotCount: number;
   /** Profile IDs in slot order; omit or duplicate-filtered client-side */
   profileIds: string[];
 }
@@ -109,6 +119,19 @@ export interface ActivityLog {
   metadata: Record<string, unknown> | null;
   created_at: string;
   profiles?: Pick<Profile, 'full_name' | 'email' | 'avatar_url'>;
+}
+
+export interface EmailTemplate {
+  id: string;
+  key: EmailTemplateKey;
+  category: EmailTemplateCategory;
+  name: string;
+  subject: string;
+  html: string;
+  description: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export const STATUS_COLORS: Record<string, string> = {
