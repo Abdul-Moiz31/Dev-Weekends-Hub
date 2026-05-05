@@ -38,8 +38,6 @@ export function defaultTemplateForKey(
   key: EmailTemplateKey,
   baseUrl: string
 ): PresetTemplate {
-  const loginUrl = `${baseUrl}/login`;
-
   switch (key) {
     case 'invite_admin':
       return {
@@ -48,7 +46,7 @@ export function defaultTemplateForKey(
           `<p>Hello {{recipient_name}},</p>` +
           `<p>You have been invited as an <strong>admin</strong> in Dev Weekends Hub.</p>` +
           `<p>Temporary password: <strong>{{temporary_password}}</strong></p>` +
-          `<p>Login here: <a href="${loginUrl}">${loginUrl}</a></p>` +
+          `<p>Open app: <a href="{{login_url}}">{{login_url}}</a></p>` +
           `<p>Please change your password after login.</p>`,
       };
     case 'invite_editor':
@@ -58,7 +56,7 @@ export function defaultTemplateForKey(
           `<p>Hello {{recipient_name}},</p>` +
           `<p>You have been invited as an <strong>editor</strong> in Dev Weekends Hub.</p>` +
           `<p>Temporary password: <strong>{{temporary_password}}</strong></p>` +
-          `<p>Login here: <a href="${loginUrl}">${loginUrl}</a></p>` +
+          `<p>Open app: <a href="{{login_url}}">{{login_url}}</a></p>` +
           `<p>Please change your password after login.</p>`,
       };
     case 'invite_viewer':
@@ -68,7 +66,7 @@ export function defaultTemplateForKey(
           `<p>Hello {{recipient_name}},</p>` +
           `<p>You have been invited as a <strong>viewer</strong> in Dev Weekends Hub.</p>` +
           `<p>Temporary password: <strong>{{temporary_password}}</strong></p>` +
-          `<p>Login here: <a href="${loginUrl}">${loginUrl}</a></p>` +
+          `<p>Open app: <a href="{{login_url}}">{{login_url}}</a></p>` +
           `<p>Please change your password after login.</p>`,
       };
     case 'mentor_added_default':
